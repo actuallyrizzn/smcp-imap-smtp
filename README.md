@@ -109,6 +109,12 @@ smcp-imap-smtp/
 - Support for CC, BCC, Reply-To headers
 - Guardrails: MAX_ATTACHMENT_BYTES
 
+## Related Projects
+
+- **[SMCP (SanctumOS)](https://github.com/sanctumos/smcp)** - SanctumOS Model Context Protocol server
+- **[SMCP (Animus)](https://github.com/AnimusUNO/smcp)** - Animus Model Context Protocol server
+- **[UCW (Universal Command Wrapper)](https://github.com/actuallyrizzn/ucw)** - Universal Command Wrapper for wrapping CLI tools into SMCP plugins
+
 ## Documentation
 
 - [Project Plan](docs/PROJECT_PLAN.md) - Detailed development plan
