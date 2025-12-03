@@ -1,6 +1,6 @@
 # SMCP IMAP/SMTP Tools
 
-Command-line tools for IMAP (email reading) and SMTP (email sending) that can be wrapped by UCW (Universal Command Wrapper) to become SMCP plugins.
+Command-line tools for IMAP (email reading) and SMTP (email sending) that can be used standalone or wrapped by UCW (Universal Command Wrapper) to become SMCP plugins for AI agents.
 
 ## Overview
 
@@ -8,7 +8,11 @@ This project provides two CLI tools:
 - **IMAP Tool**: Full-featured email reading capabilities
 - **SMTP Tool**: Full-featured email sending capabilities
 
-Both tools are designed to be wrapped by UCW, making them instantly usable as SMCP plugins for AI agents.
+**Two Usage Modes:**
+1. **Standalone**: Use directly from command line for testing and scripting
+2. **SMCP Plugins**: Wrap with UCW and install in SMCP server for AI agent use
+
+Both tools are designed to be UCW-compatible, making them instantly usable as SMCP plugins when wrapped.
 
 ## Quick Start
 
