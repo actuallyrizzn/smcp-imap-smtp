@@ -112,6 +112,10 @@ smcp-imap-smtp/
 ## Documentation
 
 - [Project Plan](docs/PROJECT_PLAN.md) - Detailed development plan
+- [Installation Guide](docs/INSTALLATION.md) - Installation and setup instructions
+- [Usage Examples](docs/USAGE_EXAMPLES.md) - Detailed usage examples
+- [Configuration Guide](docs/CONFIGURATION.md) - Server configurations and settings
+- [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
 - [UCW Requirements](docs/UCW_REQUIREMENTS.md) - UCW compatibility requirements
 - [Email Protocol Spec](docs/EMAIL_PROTOCOL_SPEC.md) - Technical specifications
 - [Setup Instructions](SETUP.md) - Virtual environment setup
