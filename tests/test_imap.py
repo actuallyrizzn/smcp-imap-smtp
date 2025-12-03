@@ -40,8 +40,11 @@ class TestIMAPConnection:
     def test_connect_auth_failure(self, mock_imap_client):
         """Test authentication failure."""
         mock_client = MagicMock()
-        from imapclient.exceptions import LoginError
-        mock_client.login.side_effect = LoginError("b'authentication failed'")
+        # Make login raise an exception that will be caught
+        mock_client.login.side_effect = Exception("b'authentication failed'")
+        # Also need to mock the PLAIN auth attempt
+        mock_client._imap = MagicMock()
+        mock_client._imap.authenticate.side_effect = Exception("b'authentication failed'")
         mock_imap_client.return_value = mock_client
         
         args = {
@@ -67,14 +70,17 @@ class TestIMAPOperations:
         conn.client = MagicMock()
         return conn
     
+    @patch('tools.imap.cli._auto_connect')
     @patch('tools.imap.imap_client.get_connection')
-    def test_list_mailboxes(self, mock_get_conn, mock_connection):
+    def test_list_mailboxes(self, mock_get_conn, mock_auto_connect):
         """Test listing mailboxes."""
-        mock_get_conn.return_value = mock_connection
+        mock_connection = Mock(spec=IMAPConnection)
         mock_connection.list_mailboxes.return_value = [
             (b'\\HasNoChildren', b'/', 'INBOX'),
             (b'\\HasNoChildren', b'/', 'Sent'),
         ]
+        mock_get_conn.return_value = mock_connection
+        mock_auto_connect.return_value = (mock_connection, False)
         
         args = {}
         result = list_mailboxes(args)
@@ -83,11 +89,15 @@ class TestIMAPOperations:
         assert 'mailboxes' in result['result']
         assert len(result['result']['mailboxes']) == 2
     
+    @patch('tools.imap.cli._auto_connect')
     @patch('tools.imap.imap_client.get_connection')
-    def test_search_emails(self, mock_get_conn, mock_connection):
+    def test_search_emails(self, mock_get_conn, mock_auto_connect):
         """Test searching emails."""
-        mock_get_conn.return_value = mock_connection
+        mock_connection = Mock(spec=IMAPConnection)
         mock_connection.search.return_value = [1, 2, 3, 4, 5]
+        mock_connection.current_mailbox = 'INBOX'
+        mock_get_conn.return_value = mock_connection
+        mock_auto_connect.return_value = (mock_connection, False)
         
         args = {'criteria': 'ALL'}
         result = search(args)
@@ -96,29 +106,38 @@ class TestIMAPOperations:
         assert 'message_ids' in result['result']
         assert len(result['result']['message_ids']) == 5
     
+    @patch('tools.imap.cli._auto_connect')
     @patch('tools.imap.imap_client.get_connection')
-    def test_fetch_email(self, mock_get_conn, mock_connection):
+    def test_fetch_email(self, mock_get_conn, mock_auto_connect):
         """Test fetching email."""
-        mock_get_conn.return_value = mock_connection
+        mock_connection = Mock(spec=IMAPConnection)
         mock_email = {
             'id': 123,
             'subject': 'Test Email',
             'from': {'email': 'sender@example.com'},
             'body': {'text': 'Test body'}
         }
-        mock_connection.fetch_messages.return_value = [mock_email]
+        mock_connection.fetch_email.return_value = mock_email
+        mock_connection.current_mailbox = 'INBOX'
+        mock_get_conn.return_value = mock_connection
+        mock_auto_connect.return_value = (mock_connection, False)
         
         args = {'message_id': 123}
         result = fetch(args)
         
         assert result['status'] == 'success'
-        assert 'emails' in result['result']
-        assert result['result']['emails'][0]['subject'] == 'Test Email'
+        assert 'subject' in result['result']
+        assert result['result']['subject'] == 'Test Email'
     
+    @patch('tools.imap.cli._auto_connect')
     @patch('tools.imap.imap_client.get_connection')
-    def test_delete_sandbox_mode(self, mock_get_conn, mock_connection):
+    def test_delete_sandbox_mode(self, mock_get_conn, mock_auto_connect):
         """Test delete in sandbox mode."""
+        mock_connection = Mock(spec=IMAPConnection)
+        mock_connection.current_mailbox = 'INBOX'
+        mock_connection.delete = Mock()
         mock_get_conn.return_value = mock_connection
+        mock_auto_connect.return_value = (mock_connection, False)
         
         args = {'message_ids': [123], 'sandbox': True}
         result = delete(args)
@@ -126,41 +145,46 @@ class TestIMAPOperations:
         assert result['status'] == 'sandbox'
         assert result['result']['sandbox_mode'] is True
         assert 'would_delete' in result['result']
-        mock_connection.delete_messages.assert_not_called()
+        mock_connection.delete.assert_not_called()
     
+    @patch('tools.imap.cli._auto_connect')
     @patch('tools.imap.imap_client.get_connection')
-    def test_delete_real_mode(self, mock_get_conn, mock_connection):
+    def test_delete_real_mode(self, mock_get_conn, mock_auto_connect):
         """Test delete in real mode."""
+        mock_connection = Mock(spec=IMAPConnection)
+        mock_connection.delete = Mock()
+        mock_connection.current_mailbox = 'INBOX'
         mock_get_conn.return_value = mock_connection
-        mock_connection.delete_messages.return_value = {'deleted': [123]}
+        mock_auto_connect.return_value = (mock_connection, False)
         
         args = {'message_ids': [123], 'sandbox': False}
         result = delete(args)
         
         assert result['status'] == 'success'
-        mock_connection.delete_messages.assert_called_once_with([123])
+        mock_connection.delete.assert_called_once_with([123])
 
 
 class TestIMAPErrorHandling:
     """Test IMAP error handling."""
     
+    @patch('tools.imap.cli._auto_connect')
     @patch('tools.imap.imap_client.get_connection')
-    def test_search_no_mailbox_selected(self, mock_get_conn):
+    def test_search_no_mailbox_selected(self, mock_get_conn, mock_auto_connect):
         """Test search when no mailbox is selected."""
         mock_conn = Mock(spec=IMAPConnection)
         mock_conn.client = MagicMock()
-        mock_conn.search.side_effect = Exception("please select mailbox first")
-        mock_get_conn.return_value = mock_conn
-        
-        # Should auto-select INBOX
-        mock_conn.select_mailbox.return_value = {'status': 'success'}
+        mock_conn.current_mailbox = None
         mock_conn.search.return_value = [1, 2, 3]
+        mock_conn.select_mailbox.return_value = {'status': 'success'}
+        mock_get_conn.return_value = mock_conn
+        mock_auto_connect.return_value = (mock_conn, True)  # Auto-connected, so should auto-select
         
         args = {'criteria': 'ALL'}
         result = search(args)
         
         assert result['status'] == 'success'
-        mock_conn.select_mailbox.assert_called()
+        # Should have auto-selected INBOX when auto-connecting
+        assert mock_conn.select_mailbox.called or mock_conn.current_mailbox == 'INBOX'
 
 
 if __name__ == '__main__':

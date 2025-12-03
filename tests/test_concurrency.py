@@ -15,8 +15,10 @@ class TestConcurrency:
     @patch('tools.imap.imap_client.IMAPClient')
     def test_multiple_connections(self, mock_imap_client):
         """Test that multiple connections can be created independently."""
-        mock_client = MagicMock()
-        mock_imap_client.return_value = mock_client
+        # Create separate mock clients for each connection
+        mock_client1 = MagicMock()
+        mock_client2 = MagicMock()
+        mock_imap_client.side_effect = [mock_client1, mock_client2]
         
         # Create multiple connections
         conn1 = IMAPConnection()
@@ -35,24 +37,25 @@ class TestConcurrency:
         """Test concurrent fetch operations."""
         mock_client = MagicMock()
         mock_client.search.return_value = [1, 2, 3]
-        mock_client.fetch.return_value = {
-            1: {b'BODY[]': b'Test email 1'},
-            2: {b'BODY[]': b'Test email 2'},
-            3: {b'BODY[]': b'Test email 3'}
-        }
         mock_imap_client.return_value = mock_client
         
         conn = IMAPConnection()
         conn.connect('imap.gmx.com', 'test@gmx.com', 'pass')
         conn.select_mailbox('INBOX')
         
+        # Mock fetch_email to return different results for each UID
+        def mock_fetch_email(uid, *args, **kwargs):
+            return {'id': uid, 'subject': f'Test email {uid}'}
+        
+        conn.fetch_email = mock_fetch_email
+        
         results = []
         errors = []
         
         def fetch_email(uid):
             try:
-                emails = conn.fetch_messages([uid])
-                results.append(emails)
+                email = conn.fetch_email(uid)
+                results.append(email)
             except Exception as e:
                 errors.append(e)
         

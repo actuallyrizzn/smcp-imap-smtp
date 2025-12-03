@@ -60,11 +60,14 @@ class TestSMTPOperations:
         conn.client = MagicMock()
         return conn
     
+    @patch('tools.smtp.cli._auto_connect')
     @patch('tools.smtp.smtp_client.get_connection')
-    def test_send_plain_text(self, mock_get_conn, mock_connection):
+    def test_send_plain_text(self, mock_get_conn, mock_auto_connect):
         """Test sending plain text email."""
-        mock_get_conn.return_value = mock_connection
+        mock_connection = Mock(spec=SMTPConnection)
         mock_connection.send_email.return_value = {'message_id': '<test@example.com>'}
+        mock_get_conn.return_value = mock_connection
+        mock_auto_connect.return_value = (mock_connection, False)
         
         args = {
             'to': 'recipient@example.com',
@@ -77,19 +80,23 @@ class TestSMTPOperations:
         assert result['status'] == 'success'
         mock_connection.send_email.assert_called_once()
         call_args = mock_connection.send_email.call_args
-        assert call_args[1]['to'] == ['recipient@example.com']
+        # Check keyword args (all args are passed as keywords)
+        assert call_args[1]['to_addrs'] == ['recipient@example.com']
         assert call_args[1]['subject'] == 'Test Subject'
     
+    @patch('tools.smtp.cli._auto_connect')
     @patch('tools.smtp.smtp_client.get_connection')
-    def test_send_html(self, mock_get_conn, mock_connection):
+    def test_send_html(self, mock_get_conn, mock_auto_connect):
         """Test sending HTML email."""
-        mock_get_conn.return_value = mock_connection
+        mock_connection = Mock(spec=SMTPConnection)
         mock_connection.send_email.return_value = {'message_id': '<test@example.com>'}
+        mock_get_conn.return_value = mock_connection
+        mock_auto_connect.return_value = (mock_connection, False)
         
         args = {
             'to': 'recipient@example.com',
             'subject': 'Test Subject',
-            'html': '<html><body>Test</body></html>'
+            'html_body': '<html><body>Test</body></html>'
         }
         
         result = send_html(args)
@@ -97,34 +104,41 @@ class TestSMTPOperations:
         assert result['status'] == 'success'
         mock_connection.send_email.assert_called_once()
         call_args = mock_connection.send_email.call_args
-        assert call_args[1]['html'] == '<html><body>Test</body></html>'
+        assert call_args[1]['html'] is True
+        assert call_args[1]['body'] == '<html><body>Test</body></html>'
     
+    @patch('tools.smtp.cli._auto_connect')
     @patch('tools.smtp.smtp_client.get_connection')
-    def test_send_with_attachment(self, mock_get_conn, mock_connection):
+    def test_send_with_attachment(self, mock_get_conn, mock_auto_connect):
         """Test sending email with attachment."""
+        mock_connection = Mock(spec=SMTPConnection)
+        mock_connection.send_email_with_attachments.return_value = {'message_id': '<test@example.com>'}
         mock_get_conn.return_value = mock_connection
-        mock_connection.send_email.return_value = {'message_id': '<test@example.com>'}
+        mock_auto_connect.return_value = (mock_connection, False)
         
         args = {
             'to': 'recipient@example.com',
             'subject': 'Test Subject',
             'body': 'Test body',
-            'attachment': '/path/to/file.pdf'
+            'attachments': ['/path/to/file.pdf']
         }
         
         result = send_with_attachment(args)
         
         assert result['status'] == 'success'
-        mock_connection.send_email.assert_called_once()
-        call_args = mock_connection.send_email.call_args
+        mock_connection.send_email_with_attachments.assert_called_once()
+        call_args = mock_connection.send_email_with_attachments.call_args
         assert 'attachments' in call_args[1]
     
+    @patch('tools.smtp.cli._auto_connect')
     @patch('tools.smtp.smtp_client.get_connection')
-    def test_send_invalid_recipient(self, mock_get_conn, mock_connection):
+    def test_send_invalid_recipient(self, mock_get_conn, mock_auto_connect):
         """Test sending to invalid recipient."""
-        mock_get_conn.return_value = mock_connection
+        mock_connection = Mock(spec=SMTPConnection)
         from smtplib import SMTPRecipientsRefused
         mock_connection.send_email.side_effect = SMTPRecipientsRefused({'invalid@': (501, b'Syntax error')})
+        mock_get_conn.return_value = mock_connection
+        mock_auto_connect.return_value = (mock_connection, False)
         
         args = {
             'to': 'invalid@',
@@ -141,12 +155,14 @@ class TestSMTPOperations:
 class TestSMTPErrorHandling:
     """Test SMTP error handling."""
     
+    @patch('tools.smtp.cli._auto_connect')
     @patch('tools.smtp.smtp_client.get_connection')
-    def test_send_connection_error(self, mock_get_conn):
+    def test_send_connection_error(self, mock_get_conn, mock_auto_connect):
         """Test handling connection errors."""
         mock_conn = Mock(spec=SMTPConnection)
         mock_conn.send_email.side_effect = ConnectionError("Connection failed")
         mock_get_conn.return_value = mock_conn
+        mock_auto_connect.return_value = (mock_conn, False)
         
         args = {
             'to': 'recipient@example.com',
