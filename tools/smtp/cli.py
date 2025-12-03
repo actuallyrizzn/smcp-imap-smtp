@@ -366,6 +366,7 @@ Examples:
     # Helper function to add connection args to parsers
     def add_connection_args(parser):
         """Add optional connection arguments for auto-connect."""
+        parser.add_argument("--account", help="Account profile name (from ~/.smcp-imap-smtp/accounts.json)")
         parser.add_argument("--server", help="SMTP server hostname (for auto-connect)")
         parser.add_argument("--username", help="SMTP username (for auto-connect)")
         parser.add_argument("--password", help="SMTP password (for auto-connect)")
@@ -374,9 +375,10 @@ Examples:
     
     # Connect command
     connect_parser = subparsers.add_parser("connect", help="Connect to SMTP server")
-    connect_parser.add_argument("--server", required=True, help="SMTP server hostname")
-    connect_parser.add_argument("--username", required=True, help="SMTP username")
-    connect_parser.add_argument("--password", required=True, help="SMTP password")
+    connect_parser.add_argument("--account", help="Account profile name (from ~/.smcp-imap-smtp/accounts.json)")
+    connect_parser.add_argument("--server", help="SMTP server hostname")
+    connect_parser.add_argument("--username", help="SMTP username")
+    connect_parser.add_argument("--password", help="SMTP password")
     connect_parser.add_argument("--port", type=int, default=587, help="SMTP server port (default: 587)")
     connect_parser.add_argument("--use-tls", action="store_true", default=True, dest="use_tls", help="Use TLS/SSL (default: True)")
     

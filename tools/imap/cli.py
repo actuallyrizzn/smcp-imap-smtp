@@ -687,9 +687,10 @@ Examples:
     
     # Connect command
     connect_parser = subparsers.add_parser("connect", help="Connect to IMAP server")
-    connect_parser.add_argument("--server", required=True, help="IMAP server hostname")
-    connect_parser.add_argument("--username", required=True, help="IMAP username")
-    connect_parser.add_argument("--password", required=True, help="IMAP password")
+    connect_parser.add_argument("--account", help="Account profile name (from ~/.smcp-imap-smtp/accounts.json)")
+    connect_parser.add_argument("--server", help="IMAP server hostname")
+    connect_parser.add_argument("--username", help="IMAP username")
+    connect_parser.add_argument("--password", help="IMAP password")
     connect_parser.add_argument("--port", type=int, default=993, help="IMAP server port (default: 993)")
     connect_parser.add_argument("--use-ssl", action="store_true", default=True, help="Use SSL/TLS (default: True)")
     
@@ -699,6 +700,7 @@ Examples:
     # Helper function to add connection args to parsers
     def add_connection_args(parser):
         """Add optional connection arguments for auto-connect."""
+        parser.add_argument("--account", help="Account profile name (from ~/.smcp-imap-smtp/accounts.json)")
         parser.add_argument("--server", help="IMAP server hostname (for auto-connect)")
         parser.add_argument("--username", help="IMAP username (for auto-connect)")
         parser.add_argument("--password", help="IMAP password (for auto-connect)")
