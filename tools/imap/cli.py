@@ -373,6 +373,10 @@ def mark_read(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
+            # Auto-select INBOX if no mailbox is selected
+            if not conn.current_mailbox:
+                conn.select_mailbox('INBOX')
+            
             uids = [int(uid) for uid in message_ids]
             conn.mark_read(uids)
             result = {
@@ -437,6 +441,10 @@ def mark_unread(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
+            # Auto-select INBOX if no mailbox is selected
+            if not conn.current_mailbox:
+                conn.select_mailbox('INBOX')
+            
             uids = [int(uid) for uid in message_ids]
             conn.mark_unread(uids)
             result = {
@@ -501,6 +509,10 @@ def delete(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
+            # Auto-select INBOX if no mailbox is selected
+            if not conn.current_mailbox:
+                conn.select_mailbox('INBOX')
+            
             uids = [int(uid) for uid in message_ids]
             conn.delete(uids)
             result = {
@@ -567,6 +579,10 @@ def move(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
+            # Auto-select INBOX if no mailbox is selected
+            if not conn.current_mailbox:
+                conn.select_mailbox('INBOX')
+            
             uids = [int(uid) for uid in message_ids]
             conn.move(uids, target_mailbox)
             result = {
