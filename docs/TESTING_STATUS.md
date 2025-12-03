@@ -1,37 +1,43 @@
 # Testing Status
 
-## Current Status: ⚠️ Authentication Issues
+## Current Status: ⚠️ Authentication Issues - Testing GMX (Primary)
 
-### IMAP Testing
+### IMAP Testing - GMX (Primary)
 
 **Connection Test**: ❌ Failed
-- **Error**: `[AUTHENTICATIONFAILED] LOGIN Invalid credentials`
-- **Server**: `imap.aol.com:993`
-- **Username**: `mcptest1aol2025@aol.com`
-- **Status**: Authentication failing - credentials may be incorrect or AOL may require app password
+- **Error**: `authentication failed`
+- **Server**: `imap.gmx.com:993`
+- **Username**: `SMCPtest1@gmx.com`
+- **Status**: Authentication failing - may need to enable IMAP in GMX account settings
 
 **Possible Causes**:
-1. ✅ **CONFIRMED**: AOL requires app passwords for third-party IMAP/SMTP access
-2. Regular account password will NOT work for IMAP/SMTP connections
-3. Need to generate app password from AOL Account Security page
+1. GMX may require IMAP/POP3 to be enabled in account settings first
+2. Password may be incorrect
+3. Account may need additional verification
 
 **Next Steps**:
-- ✅ Password updated to: `KeFMdq&'#54&QLR`
-- ⚠️ **REQUIRED**: Generate app password from AOL Account Security page
-- Use app password (not regular password) for IMAP/SMTP connections
-- Test connection with app password once generated
+- ✅ Password: `h,hvm4PFKX&sY4R`
+- ⚠️ **Check**: Enable IMAP access in GMX account settings (Settings > POP3 & IMAP)
+- Verify password is correct
+- Test connection after enabling IMAP
 
-### SMTP Testing
+### SMTP Testing - GMX (Primary)
 
-**Connection Test**: ❌ Failed
-- **Error**: `Connection unexpectedly closed`
-- **Server**: `smtp.aol.com:587`
-- **Status**: Connection failing - may be related to authentication or server configuration
+**Connection Test**: ⏳ Not tested yet
+- **Server**: `mail.gmx.com:587` or `mail.gmx.com:465`
+- **Status**: Waiting for IMAP authentication to succeed first
 
 **Next Steps**:
-- Fix authentication issue first
-- Test with port 465 (SSL) as alternative
-- Verify SMTP server configuration
+- Fix IMAP authentication first
+- Test SMTP connection with port 587 (STARTTLS)
+- Test SMTP connection with port 465 (SSL) as alternative
+
+### AOL Testing (Backup)
+
+**Status**: ⏸️ On hold - requires app password
+- **Note**: AOL requires app passwords for IMAP/SMTP access
+- **Action**: Generate app password from AOL Account Security page if needed
+- **Priority**: Backup/Reference only - focus on GMX for primary testing
 
 ## Testing Checklist
 
