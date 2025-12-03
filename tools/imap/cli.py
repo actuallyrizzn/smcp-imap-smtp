@@ -1,0 +1,532 @@
+#!/usr/bin/env python3
+"""
+IMAP CLI Tool
+
+Provides command-line interface for IMAP email operations.
+Can be wrapped by UCW to become an SMCP plugin.
+
+Copyright (c) 2025 Mark Rizzn Hopkins
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+import argparse
+import json
+import sys
+import os
+from typing import Dict, Any, Optional, List
+
+# Handle imports for both script execution and package import
+try:
+    from .imap_client import IMAPConnection, get_connection, set_connection, MAX_BODY_BYTES, MAX_ATTACHMENT_BYTES
+except ImportError:
+    # If running as script, add parent directory to path
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from tools.imap.imap_client import IMAPConnection, get_connection, set_connection, MAX_BODY_BYTES, MAX_ATTACHMENT_BYTES
+
+
+def connect(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Connect to an IMAP server."""
+    server = args.get("server")
+    username = args.get("username")
+    password = args.get("password")
+    port = args.get("port", 993)
+    use_ssl = args.get("use_ssl", True)
+    
+    if not server or not username or not password:
+        return {
+            "error": "Missing required arguments: server, username, and password"
+        }
+    
+    try:
+        # Disconnect existing connection if any
+        existing_conn = get_connection()
+        if existing_conn:
+            try:
+                existing_conn.disconnect()
+            except:
+                pass
+        
+        # Create new connection
+        conn = IMAPConnection()
+        conn.connect(server, username, password, port, use_ssl)
+        set_connection(conn)
+        
+        return {
+            "status": "success",
+            "result": {
+                "server": server,
+                "username": username,
+                "port": port,
+                "ssl": use_ssl,
+                "connected": True
+            }
+        }
+    except Exception as e:
+        return {
+            "error": f"Connection failed: {str(e)}"
+        }
+
+
+def disconnect(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Disconnect from IMAP server."""
+    conn = get_connection()
+    if not conn:
+        return {
+            "error": "Not connected to IMAP server"
+        }
+    
+    try:
+        conn.disconnect()
+        set_connection(None)
+        return {
+            "status": "success",
+            "result": {"disconnected": True}
+        }
+    except Exception as e:
+        return {
+            "error": f"Disconnect failed: {str(e)}"
+        }
+
+
+def list_mailboxes(args: Dict[str, Any]) -> Dict[str, Any]:
+    """List all mailboxes on the server."""
+    conn = get_connection()
+    if not conn:
+        return {
+            "error": "Not connected to IMAP server"
+        }
+    
+    try:
+        mailboxes = conn.list_mailboxes()
+        return {
+            "status": "success",
+            "result": {
+                "mailboxes": mailboxes
+            }
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to list mailboxes: {str(e)}"
+        }
+
+
+def select_mailbox(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Select a mailbox."""
+    mailbox = args.get("mailbox")
+    
+    if not mailbox:
+        return {
+            "error": "Missing required argument: mailbox"
+        }
+    
+    conn = get_connection()
+    if not conn:
+        return {
+            "error": "Not connected to IMAP server"
+        }
+    
+    try:
+        folder_info = conn.select_mailbox(mailbox)
+        return {
+            "status": "success",
+            "result": folder_info
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to select mailbox: {str(e)}"
+        }
+
+
+def search(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Search for emails."""
+    criteria = args.get("criteria")
+    
+    if not criteria:
+        return {
+            "error": "Missing required argument: criteria"
+        }
+    
+    conn = get_connection()
+    if not conn:
+        return {
+            "error": "Not connected to IMAP server"
+        }
+    
+    try:
+        uids = conn.search(criteria)
+        return {
+            "status": "success",
+            "result": {
+                "criteria": criteria,
+                "message_ids": uids,
+                "count": len(uids)
+            }
+        }
+    except Exception as e:
+        return {
+            "error": f"Search failed: {str(e)}"
+        }
+
+
+def fetch(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Fetch email content."""
+    message_id = args.get("message_id")
+    max_body_bytes = args.get("max_body_bytes", MAX_BODY_BYTES)
+    max_attachment_bytes = args.get("max_attachment_bytes", MAX_ATTACHMENT_BYTES)
+    
+    if not message_id:
+        return {
+            "error": "Missing required argument: message-id"
+        }
+    
+    try:
+        uid = int(message_id)
+    except ValueError:
+        return {
+            "error": f"Invalid message ID: {message_id} (must be integer)"
+        }
+    
+    conn = get_connection()
+    if not conn:
+        return {
+            "error": "Not connected to IMAP server"
+        }
+    
+    try:
+        email_data = conn.fetch_email(uid, max_body_bytes, max_attachment_bytes)
+        # Set mailbox if known
+        if conn.current_mailbox:
+            email_data["mailbox"] = conn.current_mailbox
+        
+        return {
+            "status": "success",
+            "result": email_data
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to fetch email: {str(e)}"
+        }
+
+
+def mark_read(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Mark email(s) as read."""
+    message_ids = args.get("message_ids")
+    sandbox = args.get("sandbox", False)
+    
+    if not message_ids:
+        return {
+            "error": "Missing required argument: message-ids"
+        }
+    
+    if sandbox:
+        return {
+            "status": "sandbox",
+            "result": {
+                "message_ids": message_ids,
+                "would_mark_read": True,
+                "sandbox_mode": True
+            }
+        }
+    
+    conn = get_connection()
+    if not conn:
+        return {
+            "error": "Not connected to IMAP server"
+        }
+    
+    try:
+        uids = [int(uid) for uid in message_ids]
+        conn.mark_read(uids)
+        return {
+            "status": "success",
+            "result": {
+                "message_ids": uids,
+                "marked_read": True
+            }
+        }
+    except ValueError as e:
+        return {
+            "error": f"Invalid message ID: {str(e)}"
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to mark as read: {str(e)}"
+        }
+
+
+def mark_unread(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Mark email(s) as unread."""
+    message_ids = args.get("message_ids")
+    sandbox = args.get("sandbox", False)
+    
+    if not message_ids:
+        return {
+            "error": "Missing required argument: message-ids"
+        }
+    
+    if sandbox:
+        return {
+            "status": "sandbox",
+            "result": {
+                "message_ids": message_ids,
+                "would_mark_unread": True,
+                "sandbox_mode": True
+            }
+        }
+    
+    conn = get_connection()
+    if not conn:
+        return {
+            "error": "Not connected to IMAP server"
+        }
+    
+    try:
+        uids = [int(uid) for uid in message_ids]
+        conn.mark_unread(uids)
+        return {
+            "status": "success",
+            "result": {
+                "message_ids": uids,
+                "marked_unread": True
+            }
+        }
+    except ValueError as e:
+        return {
+            "error": f"Invalid message ID: {str(e)}"
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to mark as unread: {str(e)}"
+        }
+
+
+def delete(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Delete email(s). Respects sandbox mode."""
+    message_ids = args.get("message_ids")
+    sandbox = args.get("sandbox", False)
+    
+    if not message_ids:
+        return {
+            "error": "Missing required argument: message-ids"
+        }
+    
+    if sandbox:
+        return {
+            "status": "sandbox",
+            "result": {
+                "message_ids": message_ids,
+                "would_delete": True,
+                "sandbox_mode": True
+            }
+        }
+    
+    conn = get_connection()
+    if not conn:
+        return {
+            "error": "Not connected to IMAP server"
+        }
+    
+    try:
+        uids = [int(uid) for uid in message_ids]
+        conn.delete(uids)
+        return {
+            "status": "success",
+            "result": {
+                "message_ids": uids,
+                "deleted": True
+            }
+        }
+    except ValueError as e:
+        return {
+            "error": f"Invalid message ID: {str(e)}"
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to delete: {str(e)}"
+        }
+
+
+def move(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Move email(s) to another mailbox. Respects sandbox mode."""
+    message_ids = args.get("message_ids")
+    target_mailbox = args.get("target_mailbox")
+    sandbox = args.get("sandbox", False)
+    
+    if not message_ids or not target_mailbox:
+        return {
+            "error": "Missing required arguments: message-ids and target-mailbox"
+        }
+    
+    if sandbox:
+        return {
+            "status": "sandbox",
+            "result": {
+                "message_ids": message_ids,
+                "target_mailbox": target_mailbox,
+                "would_move": True,
+                "sandbox_mode": True
+            }
+        }
+    
+    conn = get_connection()
+    if not conn:
+        return {
+            "error": "Not connected to IMAP server"
+        }
+    
+    try:
+        uids = [int(uid) for uid in message_ids]
+        conn.move(uids, target_mailbox)
+        return {
+            "status": "success",
+            "result": {
+                "message_ids": uids,
+                "target_mailbox": target_mailbox,
+                "moved": True
+            }
+        }
+    except ValueError as e:
+        return {
+            "error": f"Invalid message ID: {str(e)}"
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to move: {str(e)}"
+        }
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="IMAP email reading tool (UCW-compatible)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Available commands:
+  connect          Connect to IMAP server
+  disconnect       Disconnect from IMAP server
+  list-mailboxes   List all mailboxes
+  select-mailbox   Select a mailbox
+  search           Search for emails
+  fetch            Fetch email content
+  mark-read        Mark email(s) as read
+  mark-unread      Mark email(s) as unread
+  delete           Delete email(s) (sandbox-aware)
+  move             Move email(s) to another mailbox (sandbox-aware)
+
+Examples:
+  python cli.py connect --server imap.aol.com --username test@aol.com --password pass
+  python cli.py list-mailboxes
+  python cli.py search --criteria "ALL"
+  python cli.py fetch --message-id 12345
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    
+    # Connect command
+    connect_parser = subparsers.add_parser("connect", help="Connect to IMAP server")
+    connect_parser.add_argument("--server", required=True, help="IMAP server hostname")
+    connect_parser.add_argument("--username", required=True, help="IMAP username")
+    connect_parser.add_argument("--password", required=True, help="IMAP password")
+    connect_parser.add_argument("--port", type=int, default=993, help="IMAP server port (default: 993)")
+    connect_parser.add_argument("--use-ssl", action="store_true", default=True, help="Use SSL/TLS (default: True)")
+    
+    # Disconnect command
+    disconnect_parser = subparsers.add_parser("disconnect", help="Disconnect from IMAP server")
+    
+    # List mailboxes command
+    list_parser = subparsers.add_parser("list-mailboxes", help="List all mailboxes")
+    
+    # Select mailbox command
+    select_parser = subparsers.add_parser("select-mailbox", help="Select a mailbox")
+    select_parser.add_argument("--mailbox", required=True, help="Mailbox name (e.g., INBOX)")
+    
+    # Search command
+    search_parser = subparsers.add_parser("search", help="Search for emails")
+    search_parser.add_argument("--criteria", required=True, help="Search criteria (e.g., 'ALL', 'UNSEEN', 'FROM sender@example.com')")
+    
+    # Fetch command
+    fetch_parser = subparsers.add_parser("fetch", help="Fetch email content")
+    fetch_parser.add_argument("--message-id", required=True, dest="message_id", help="Message ID or UID to fetch")
+    fetch_parser.add_argument("--max-body-bytes", type=int, default=MAX_BODY_BYTES, dest="max_body_bytes", help=f"Maximum body size in bytes (default: {MAX_BODY_BYTES})")
+    fetch_parser.add_argument("--max-attachment-bytes", type=int, default=MAX_ATTACHMENT_BYTES, dest="max_attachment_bytes", help=f"Maximum attachment size in bytes (default: {MAX_ATTACHMENT_BYTES})")
+    
+    # Mark read command
+    mark_read_parser = subparsers.add_parser("mark-read", help="Mark email(s) as read")
+    mark_read_parser.add_argument("--message-ids", required=True, nargs="+", dest="message_ids", help="Message IDs or UIDs to mark as read")
+    mark_read_parser.add_argument("--sandbox", action="store_true", help="Sandbox mode: simulate without actually marking")
+    
+    # Mark unread command
+    mark_unread_parser = subparsers.add_parser("mark-unread", help="Mark email(s) as unread")
+    mark_unread_parser.add_argument("--message-ids", required=True, nargs="+", dest="message_ids", help="Message IDs or UIDs to mark as unread")
+    mark_unread_parser.add_argument("--sandbox", action="store_true", help="Sandbox mode: simulate without actually marking")
+    
+    # Delete command
+    delete_parser = subparsers.add_parser("delete", help="Delete email(s)")
+    delete_parser.add_argument("--message-ids", required=True, nargs="+", dest="message_ids", help="Message IDs or UIDs to delete")
+    delete_parser.add_argument("--sandbox", action="store_true", help="Sandbox mode: simulate deletion without actually deleting")
+    
+    # Move command
+    move_parser = subparsers.add_parser("move", help="Move email(s) to another mailbox")
+    move_parser.add_argument("--message-ids", required=True, nargs="+", dest="message_ids", help="Message IDs or UIDs to move")
+    move_parser.add_argument("--target-mailbox", required=True, dest="target_mailbox", help="Target mailbox name")
+    move_parser.add_argument("--sandbox", action="store_true", help="Sandbox mode: simulate move without actually moving")
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+    
+    try:
+        # Convert argparse Namespace to dict
+        args_dict = vars(args)
+        
+        # Execute command
+        if args.command == "connect":
+            result = connect(args_dict)
+        elif args.command == "disconnect":
+            result = disconnect(args_dict)
+        elif args.command == "list-mailboxes":
+            result = list_mailboxes(args_dict)
+        elif args.command == "select-mailbox":
+            result = select_mailbox(args_dict)
+        elif args.command == "search":
+            result = search(args_dict)
+        elif args.command == "fetch":
+            result = fetch(args_dict)
+        elif args.command == "mark-read":
+            result = mark_read(args_dict)
+        elif args.command == "mark-unread":
+            result = mark_unread(args_dict)
+        elif args.command == "delete":
+            result = delete(args_dict)
+        elif args.command == "move":
+            result = move(args_dict)
+        else:
+            result = {"error": f"Unknown command: {args.command}"}
+        
+        # Output JSON
+        print(json.dumps(result, indent=2))
+        sys.exit(0 if "error" not in result else 1)
+        
+    except Exception as e:
+        error_result = {"error": str(e)}
+        print(json.dumps(error_result, indent=2))
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+

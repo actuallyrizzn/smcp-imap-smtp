@@ -1,0 +1,16 @@
+# IMAP/SMTP CLI Tools Dependencies
+# For use with Python virtual environment
+
+# IMAP client library (recommended over standard library imaplib)
+imapclient>=2.3.1
+
+# Email parsing (standard library, but listed for clarity)
+# email - part of Python standard library
+
+# SMTP (standard library, but listed for clarity)
+# smtplib - part of Python standard library
+
+# Testing dependencies (optional, for development)
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
