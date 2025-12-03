@@ -41,19 +41,29 @@ class IMAPConnection:
             self.client = IMAPClient(server, port=port, ssl=use_ssl)
             # Try login with proper error handling
             try:
+                # Try standard login first
                 self.client.login(username, password)
             except Exception as login_error:
                 error_msg = str(login_error)
-                # Provide more helpful error messages
-                if 'AUTHENTICATIONFAILED' in error_msg or 'Invalid credentials' in error_msg:
-                    raise RuntimeError(
-                        f"Authentication failed. This may be due to:\n"
-                        f"1. Incorrect username or password\n"
-                        f"2. AOL may require an app password instead of your regular password\n"
-                        f"3. Account may need additional security setup\n"
-                        f"Original error: {error_msg}"
-                    )
-                raise
+                # If login fails, try PLAIN authentication (some servers prefer this)
+                if 'authentication failed' in error_msg.lower() or 'AUTHENTICATIONFAILED' in error_msg:
+                    try:
+                        # Try PLAIN authentication
+                        import base64
+                        auth_string = base64.b64encode(f'\0{username}\0{password}'.encode()).decode()
+                        self.client._imap.authenticate('PLAIN', lambda: auth_string)
+                    except Exception as plain_error:
+                        # If PLAIN also fails, raise original error with helpful message
+                        raise RuntimeError(
+                            f"Authentication failed. This may be due to:\n"
+                            f"1. Incorrect username or password\n"
+                            f"2. IMAP access may not be enabled in account settings\n"
+                            f"3. App password may be incorrect or expired\n"
+                            f"4. Account may need additional security setup\n"
+                            f"Original error: {error_msg}"
+                        )
+                else:
+                    raise
             self.server = server
             self.username = username
             logger.info(f"Connected to {server} as {username}")
