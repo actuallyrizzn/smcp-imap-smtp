@@ -98,7 +98,7 @@ class IMAPConnection:
             {
                 "name": folder[2],
                 "delimiter": folder[1],
-                "flags": folder[0]
+                "flags": [f.decode() if isinstance(f, bytes) else str(f) for f in folder[0]]
             }
             for folder in folders
         ]

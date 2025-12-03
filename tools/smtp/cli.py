@@ -42,6 +42,39 @@ except ImportError:
     from tools.smtp.smtp_client import SMTPConnection, get_connection, set_connection, MAX_ATTACHMENT_BYTES
 
 
+def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]:
+    """
+    Helper function to auto-connect if credentials are provided.
+    Returns (connection, auto_connected_flag)
+    """
+    conn = get_connection()
+    if conn:
+        return conn, False
+    
+    server = args.get("server")
+    username = args.get("username")
+    password = args.get("password")
+    port = args.get("port", 587)
+    use_tls = args.get("use_tls", True)
+    
+    import os
+    if not username:
+        username = os.getenv('SMTP_USERNAME') or os.getenv('IMAP_USERNAME')
+    if not password:
+        password = os.getenv('SMTP_PASSWORD') or os.getenv('IMAP_PASSWORD')
+    
+    if server and username and password:
+        try:
+            conn = SMTPConnection()
+            conn.connect(server, username, password, port, use_tls)
+            set_connection(conn)
+            return conn, True
+        except Exception as e:
+            raise RuntimeError(f"Auto-connect failed: {str(e)}")
+    
+    return None, False
+
+
 def connect(args: Dict[str, Any]) -> Dict[str, Any]:
     """Connect to an SMTP server."""
     server = args.get("server")
@@ -134,27 +167,45 @@ def send(args: Dict[str, Any]) -> Dict[str, Any]:
             "error": "Missing required arguments: to, subject, and body"
         }
     
-    conn = get_connection()
-    if not conn:
-        return {
-            "error": "Not connected to SMTP server"
-        }
-    
     try:
-        result = conn.send_email(
-            to_addrs=to_addrs if isinstance(to_addrs, list) else [to_addrs],
-            subject=subject,
-            body=body,
-            from_addr=from_addr,
-            cc=cc if isinstance(cc, list) else [cc] if cc else [],
-            bcc=bcc if isinstance(bcc, list) else [bcc] if bcc else [],
-            reply_to=reply_to,
-            html=False
-        )
-        return {
-            "status": "success",
-            "result": result
-        }
+        conn, auto_connected = _auto_connect(args)
+        if not conn:
+            return {
+                "error": "Not connected to SMTP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+            }
+        
+        try:
+            result = conn.send_email(
+                to_addrs=to_addrs if isinstance(to_addrs, list) else [to_addrs],
+                subject=subject,
+                body=body,
+                from_addr=from_addr,
+                cc=cc if isinstance(cc, list) else [cc] if cc else [],
+                bcc=bcc if isinstance(bcc, list) else [bcc] if bcc else [],
+                reply_to=reply_to,
+                html=False
+            )
+            response = {
+                "status": "success",
+                "result": result
+            }
+            if auto_connected:
+                try:
+                    conn.disconnect()
+                    set_connection(None)
+                except:
+                    pass
+            return response
+        except Exception as e:
+            if auto_connected:
+                try:
+                    conn.disconnect()
+                    set_connection(None)
+                except:
+                    pass
+            raise
+    except RuntimeError as e:
+        return {"error": str(e)}
     except Exception as e:
         return {
             "error": f"Failed to send email: {str(e)}"
@@ -177,28 +228,46 @@ def send_html(args: Dict[str, Any]) -> Dict[str, Any]:
             "error": "Missing required arguments: to, subject, and html-body"
         }
     
-    conn = get_connection()
-    if not conn:
-        return {
-            "error": "Not connected to SMTP server"
-        }
-    
     try:
-        result = conn.send_email(
-            to_addrs=to_addrs if isinstance(to_addrs, list) else [to_addrs],
-            subject=subject,
-            body=html_body,
-            text_body=text_body,
-            from_addr=from_addr,
-            cc=cc if isinstance(cc, list) else [cc] if cc else [],
-            bcc=bcc if isinstance(bcc, list) else [bcc] if bcc else [],
-            reply_to=reply_to,
-            html=True
-        )
-        return {
-            "status": "success",
-            "result": result
-        }
+        conn, auto_connected = _auto_connect(args)
+        if not conn:
+            return {
+                "error": "Not connected to SMTP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+            }
+        
+        try:
+            result = conn.send_email(
+                to_addrs=to_addrs if isinstance(to_addrs, list) else [to_addrs],
+                subject=subject,
+                body=html_body,
+                text_body=text_body,
+                from_addr=from_addr,
+                cc=cc if isinstance(cc, list) else [cc] if cc else [],
+                bcc=bcc if isinstance(bcc, list) else [bcc] if bcc else [],
+                reply_to=reply_to,
+                html=True
+            )
+            response = {
+                "status": "success",
+                "result": result
+            }
+            if auto_connected:
+                try:
+                    conn.disconnect()
+                    set_connection(None)
+                except:
+                    pass
+            return response
+        except Exception as e:
+            if auto_connected:
+                try:
+                    conn.disconnect()
+                    set_connection(None)
+                except:
+                    pass
+            raise
+    except RuntimeError as e:
+        return {"error": str(e)}
     except Exception as e:
         return {
             "error": f"Failed to send email: {str(e)}"
@@ -227,28 +296,46 @@ def send_with_attachment(args: Dict[str, Any]) -> Dict[str, Any]:
             "error": "Missing required argument: attachments"
         }
     
-    conn = get_connection()
-    if not conn:
-        return {
-            "error": "Not connected to SMTP server"
-        }
-    
     try:
-        result = conn.send_email_with_attachments(
-            to_addrs=to_addrs if isinstance(to_addrs, list) else [to_addrs],
-            subject=subject,
-            body=body,
-            attachments=attachments if isinstance(attachments, list) else [attachments],
-            from_addr=from_addr,
-            cc=cc if isinstance(cc, list) else [cc] if cc else [],
-            bcc=bcc if isinstance(bcc, list) else [bcc] if bcc else [],
-            reply_to=reply_to,
-            html=html
-        )
-        return {
-            "status": "success",
-            "result": result
-        }
+        conn, auto_connected = _auto_connect(args)
+        if not conn:
+            return {
+                "error": "Not connected to SMTP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+            }
+        
+        try:
+            result = conn.send_email_with_attachments(
+                to_addrs=to_addrs if isinstance(to_addrs, list) else [to_addrs],
+                subject=subject,
+                body=body,
+                attachments=attachments if isinstance(attachments, list) else [attachments],
+                from_addr=from_addr,
+                cc=cc if isinstance(cc, list) else [cc] if cc else [],
+                bcc=bcc if isinstance(bcc, list) else [bcc] if bcc else [],
+                reply_to=reply_to,
+                html=html
+            )
+            response = {
+                "status": "success",
+                "result": result
+            }
+            if auto_connected:
+                try:
+                    conn.disconnect()
+                    set_connection(None)
+                except:
+                    pass
+            return response
+        except Exception as e:
+            if auto_connected:
+                try:
+                    conn.disconnect()
+                    set_connection(None)
+                except:
+                    pass
+            raise
+    except RuntimeError as e:
+        return {"error": str(e)}
     except Exception as e:
         return {
             "error": f"Failed to send email: {str(e)}"
@@ -276,6 +363,15 @@ Examples:
     
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
+    # Helper function to add connection args to parsers
+    def add_connection_args(parser):
+        """Add optional connection arguments for auto-connect."""
+        parser.add_argument("--server", help="SMTP server hostname (for auto-connect)")
+        parser.add_argument("--username", help="SMTP username (for auto-connect)")
+        parser.add_argument("--password", help="SMTP password (for auto-connect)")
+        parser.add_argument("--port", type=int, default=587, help="SMTP server port (default: 587, for auto-connect)")
+        parser.add_argument("--use-tls", action="store_true", default=True, dest="use_tls", help="Use TLS/SSL (default: True, for auto-connect)")
+    
     # Connect command
     connect_parser = subparsers.add_parser("connect", help="Connect to SMTP server")
     connect_parser.add_argument("--server", required=True, help="SMTP server hostname")
@@ -296,6 +392,7 @@ Examples:
     send_parser.add_argument("--cc", nargs="+", default=[], help="CC recipient(s)")
     send_parser.add_argument("--bcc", nargs="+", default=[], help="BCC recipient(s)")
     send_parser.add_argument("--reply-to", dest="reply_to", help="Reply-To email address")
+    add_connection_args(send_parser)
     
     # Send HTML command
     send_html_parser = subparsers.add_parser("send-html", help="Send HTML email")
@@ -307,6 +404,7 @@ Examples:
     send_html_parser.add_argument("--cc", nargs="+", default=[], help="CC recipient(s)")
     send_html_parser.add_argument("--bcc", nargs="+", default=[], help="BCC recipient(s)")
     send_html_parser.add_argument("--reply-to", dest="reply_to", help="Reply-To email address")
+    add_connection_args(send_html_parser)
     
     # Send with attachment command
     send_attach_parser = subparsers.add_parser("send-with-attachment", help="Send email with attachments")
@@ -319,6 +417,7 @@ Examples:
     send_attach_parser.add_argument("--bcc", nargs="+", default=[], help="BCC recipient(s)")
     send_attach_parser.add_argument("--reply-to", dest="reply_to", help="Reply-To email address")
     send_attach_parser.add_argument("--html", action="store_true", help="Body is HTML (default: plain text)")
+    add_connection_args(send_attach_parser)
     
     args = parser.parse_args()
     
