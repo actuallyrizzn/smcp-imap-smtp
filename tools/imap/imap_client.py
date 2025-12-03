@@ -22,9 +22,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Guardrails
-MAX_BODY_BYTES = 10 * 1024 * 1024  # 10MB default
-MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024  # 25MB default
+# Guardrails (configurable via environment variables)
+import os
+MAX_BODY_BYTES = int(os.getenv('MAX_BODY_BYTES', 10 * 1024 * 1024))  # 10MB default
+MAX_ATTACHMENT_BYTES = int(os.getenv('MAX_ATTACHMENT_BYTES', 25 * 1024 * 1024))  # 25MB default
 
 
 class IMAPConnection:
@@ -67,7 +68,9 @@ class IMAPConnection:
                     raise
             self.server = server
             self.username = username
-            logger.info(f"Connected to {server} as {username}")
+            # Mask password in logs
+            masked_username = username.split('@')[0] + '@***' if '@' in username else '***'
+            logger.info(f"Connected to {server} as {masked_username}")
         except Exception as e:
             logger.error(f"Connection failed: {e}")
             raise

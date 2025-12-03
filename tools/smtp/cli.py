@@ -50,9 +50,22 @@ def connect(args: Dict[str, Any]) -> Dict[str, Any]:
     port = args.get("port", 587)
     use_tls = args.get("use_tls", True)
     
+    # Support environment variables for credentials
+    import os
+    if not username:
+        username = os.getenv('SMTP_USERNAME') or os.getenv('IMAP_USERNAME')
+    if not password:
+        password = os.getenv('SMTP_PASSWORD') or os.getenv('IMAP_PASSWORD')
+    
     if not server or not username or not password:
         return {
-            "error": "Missing required arguments: server, username, and password"
+            "error": "Missing required arguments: server, username, and password (or set SMTP_USERNAME/SMTP_PASSWORD env vars)"
+        }
+    
+    # Input validation
+    if not isinstance(port, int) or port < 1 or port > 65535:
+        return {
+            "error": f"Invalid port: {port} (must be 1-65535)"
         }
     
     try:
