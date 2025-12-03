@@ -111,6 +111,7 @@ smcp-imap-smtp/
 
 ## Related Projects
 
+- **[LettaAI](https://github.com/letta-ai/letta)** - LettaAI, the AI agent framework that SMCP is built for (though SMCP is not exclusively for LettaAI)
 - **[SMCP (SanctumOS)](https://github.com/sanctumos/smcp)** - SanctumOS Model Context Protocol server
 - **[SMCP (Animus)](https://github.com/AnimusUNO/smcp)** - Animus Model Context Protocol server
 - **[UCW (Universal Command Wrapper)](https://github.com/actuallyrizzn/ucw)** - Universal Command Wrapper for wrapping CLI tools into SMCP plugins
