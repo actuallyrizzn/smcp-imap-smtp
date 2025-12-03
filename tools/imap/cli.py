@@ -247,6 +247,10 @@ def search(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
+            # Auto-select INBOX if no mailbox is selected
+            if not conn.current_mailbox:
+                conn.select_mailbox('INBOX')
+            
             uids = conn.search(criteria)
             result = {
                 "status": "success",
@@ -305,6 +309,10 @@ def fetch(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
+            # Auto-select INBOX if no mailbox is selected
+            if not conn.current_mailbox:
+                conn.select_mailbox('INBOX')
+            
             email_data = conn.fetch_email(uid, max_body_bytes, max_attachment_bytes)
             # Set mailbox if known
             if conn.current_mailbox:
