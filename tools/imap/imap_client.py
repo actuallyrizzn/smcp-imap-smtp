@@ -4,7 +4,7 @@ IMAP Client Module
 Handles IMAP connection management, email fetching, and normalization.
 """
 
-import email
+import email.message
 import email.utils
 from email.header import decode_header
 from typing import Dict, Any, List, Optional, Tuple
@@ -130,7 +130,7 @@ class IMAPConnection:
         raw_email = msg_data[b'RFC822']
         
         # Parse email
-        msg = email.message_from_bytes(raw_email)
+        msg = message_from_bytes(raw_email)
         
         # Normalize email
         normalized = normalize_email(msg, uid, max_body_bytes, max_attachment_bytes)

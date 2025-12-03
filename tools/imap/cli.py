@@ -32,7 +32,9 @@ try:
     from .imap_client import IMAPConnection, get_connection, set_connection, MAX_BODY_BYTES, MAX_ATTACHMENT_BYTES
 except ImportError:
     # If running as script, add parent directory to path
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(os.path.dirname(script_dir))
+    sys.path.insert(0, project_root)
     from tools.imap.imap_client import IMAPConnection, get_connection, set_connection, MAX_BODY_BYTES, MAX_ATTACHMENT_BYTES
 
 
