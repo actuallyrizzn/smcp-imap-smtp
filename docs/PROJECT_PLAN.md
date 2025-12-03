@@ -631,7 +631,78 @@ This becomes one of the "baseline sense organs" of SanctumOS—like vision, audi
 
 ---
 
+## Addendum: Post-Development Gaps (December 3, 2025)
+
+After initial development completion, project engineer review identified several gaps that need to be addressed for production readiness:
+
+### Phase 6: Production Readiness & Testing
+
+**Objective**: Address missing production features, comprehensive testing, and documentation gaps.
+
+#### Step 6.1: Comprehensive Test Suite
+
+**Tasks**:
+- [ ] Create `tests/test_imap.py` with unit tests for IMAP operations
+- [ ] Create `tests/test_smtp.py` with unit tests for SMTP operations
+- [ ] Create `tests/test_concurrency.py` for thread-safety and concurrent access
+- [ ] Create `tests/test_mime_edge_cases.py` using malformed MIME corpus
+- [ ] Create `tests/test_integration.py` for end-to-end workflows
+- [ ] Add pytest configuration and test fixtures
+- [ ] Add test coverage reporting
+- [ ] Document test execution in README
+
+**Deliverable**: Full test suite with >80% coverage
+
+#### Step 6.2: Account Profile Management
+
+**Tasks**:
+- [ ] Design account profile schema (JSON/YAML config)
+- [ ] Create `~/.smcp-imap-smtp/config.json` or `accounts.yaml` structure
+- [ ] Implement profile loading/saving functionality
+- [ ] Add `--account <name>` flag to IMAP/SMTP commands
+- [ ] Add `profile` subcommand for managing accounts (list, add, remove, set-default)
+- [ ] Update all CLI commands to support profile-based auth
+- [ ] Document profile management in README and usage examples
+- [ ] Add example config file
+
+**Deliverable**: Named account profiles with easy switching
+
+#### Step 6.3: Documentation Updates
+
+**Tasks**:
+- [ ] Add sandbox mode examples to README quick start
+- [ ] Add `imapclient` vs `imaplib` rationale to README
+- [ ] Document concurrency model and connection pooling approach
+- [ ] Add rate-limiting documentation
+- [ ] Update all usage examples to show both profile-based and direct auth
+- [ ] Add troubleshooting section for common profile issues
+
+**Deliverable**: Complete documentation with all features demonstrated
+
+#### Step 6.4: Concurrency & Rate Limiting
+
+**Tasks**:
+- [ ] Document current concurrency model (one connection per CLI invocation)
+- [ ] Add connection pooling documentation for multi-agent scenarios
+- [ ] Implement or document rate-limiting patterns
+- [ ] Add examples of safe concurrent access patterns
+- [ ] Create `docs/CONCURRENCY.md` guide
+
+**Deliverable**: Clear concurrency documentation and patterns
+
+#### Step 6.5: Versioning & Releases
+
+**Tasks**:
+- [ ] Create `CHANGELOG.md` with version history
+- [ ] Create initial version tag (v0.1.0 or v1.0.0)
+- [ ] Document release process
+- [ ] Add version command to CLI tools
+
+**Deliverable**: Versioned releases with changelog
+
+---
+
 **Project Start Date**: December 2, 2025  
-**Last Updated**: December 2, 2025  
-**Status**: Planning Phase - Refined with architectural considerations
+**Last Updated**: December 3, 2025  
+**Status**: Phase 6 - Production Readiness & Testing
 

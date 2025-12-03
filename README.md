@@ -41,27 +41,33 @@ Both tools are designed to be wrapped by UCW, making them instantly usable as SM
 #### IMAP Tool
 
 ```bash
-# Connect to IMAP server
-python tools/imap/cli.py connect --server imap.aol.com --username test@aol.com --password pass
+# Connect to IMAP server (auto-connects if credentials provided)
+python tools/imap/cli.py list-mailboxes --server imap.gmx.com --username test@gmx.com --password pass
 
-# List mailboxes
-python tools/imap/cli.py list-mailboxes
-
-# Search emails
-python tools/imap/cli.py search --criteria "ALL"
+# Search emails (auto-connects and selects INBOX)
+python tools/imap/cli.py search --criteria "ALL" --server imap.gmx.com --username test@gmx.com --password pass
 
 # Fetch email
-python tools/imap/cli.py fetch --message-id 12345
+python tools/imap/cli.py fetch --message-id 12345 --server imap.gmx.com --username test@gmx.com --password pass
+
+# Delete email in sandbox mode (simulates without actually deleting)
+python tools/imap/cli.py delete --message-ids 12345 --sandbox --server imap.gmx.com --username test@gmx.com --password pass
+
+# Delete email for real (no --sandbox flag)
+python tools/imap/cli.py delete --message-ids 12345 --server imap.gmx.com --username test@gmx.com --password pass
 ```
 
 #### SMTP Tool
 
 ```bash
-# Connect to SMTP server
-python tools/smtp/cli.py connect --server smtp.aol.com --username test@aol.com --password pass
+# Send email (auto-connects if credentials provided)
+python tools/smtp/cli.py send --to recipient@example.com --subject "Test" --body "Hello" --server mail.gmx.com --username test@gmx.com --password pass
 
-# Send email
-python tools/smtp/cli.py send --to recipient@example.com --subject "Test" --body "Hello"
+# Send HTML email
+python tools/smtp/cli.py send-html --to recipient@example.com --subject "Test" --html "<html><body>Hello</body></html>" --server mail.gmx.com --username test@gmx.com --password pass
+
+# Send email with attachment
+python tools/smtp/cli.py send-with-attachment --to recipient@example.com --subject "Test" --body "Hello" --attachment file.pdf --server mail.gmx.com --username test@gmx.com --password pass
 ```
 
 ## UCW Wrapping
@@ -93,13 +99,15 @@ smcp-imap-smtp/
 ## Features
 
 ### IMAP Tool
-- Connect to IMAP servers
+- Connect to IMAP servers (using `imapclient` library for robust MIME handling)
 - List and select mailboxes
 - Search emails
 - Fetch email content with normalization
 - Mark emails as read/unread
 - Delete and move emails (with sandbox mode)
 - Guardrails: MAX_BODY_BYTES, MAX_ATTACHMENT_BYTES
+- Auto-connect: Commands automatically connect if credentials provided
+- Sandbox mode: `--sandbox` flag prevents destructive operations
 
 ### SMTP Tool
 - Connect to SMTP servers
@@ -108,6 +116,14 @@ smcp-imap-smtp/
 - Send emails with attachments
 - Support for CC, BCC, Reply-To headers
 - Guardrails: MAX_ATTACHMENT_BYTES
+- Auto-connect: Commands automatically connect if credentials provided
+
+### Why `imapclient` instead of `imaplib`?
+We use `imapclient` (not the standard library `imaplib`) because:
+- **Better MIME handling**: More robust parsing of malformed emails
+- **Improved error messages**: Clearer error reporting for debugging
+- **Better Unicode support**: Handles encoding issues more gracefully
+- **Active maintenance**: Regularly updated with bug fixes and improvements
 
 ## Related Projects
 
