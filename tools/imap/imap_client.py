@@ -7,6 +7,7 @@ Handles IMAP connection management, email fetching, and normalization.
 import email.message
 import email.utils
 from email.header import decode_header
+from email import message_from_bytes
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 import imapclient
