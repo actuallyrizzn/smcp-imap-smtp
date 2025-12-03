@@ -1,0 +1,8 @@
+From: test@example.com
+To: recipient@example.com
+Subject: Test =?utf-8?b?w7/DvsO9?=
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+
+Body with invalid encoding: ÿþý

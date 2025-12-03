@@ -25,10 +25,10 @@ def create_invalid_encoding():
     msg = EmailMessage()
     msg['From'] = 'test@example.com'
     msg['To'] = 'recipient@example.com'
-    msg['Subject'] = 'Invalid Encoding Test'
-    # Invalid encoding in header
+    # Invalid encoding in header - use raw bytes
     msg['Subject'] = 'Test \xff\xfe\xfd'  # Invalid UTF-8
-    msg.set_content('Body with invalid encoding: \xff\xfe\xfd')
+    # Set content with invalid encoding
+    msg.set_content('Body with invalid encoding: \xff\xfe\xfd', charset='utf-8')
     return msg.as_bytes()
 
 def create_corrupted_headers():

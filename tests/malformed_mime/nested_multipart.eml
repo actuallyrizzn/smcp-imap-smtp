@@ -1,102 +1,102 @@
-Content-Type: multipart/mixed; boundary="===============1767301184635200035=="
+Content-Type: multipart/mixed; boundary="===============0710225122019197233=="
 MIME-Version: 1.0
 From: test@example.com
 To: recipient@example.com
 Subject: Nested Multipart Test
 
---===============1767301184635200035==
+--===============0710225122019197233==
 Content-Type: multipart/alternative;
- boundary="===============4116316413178211419=="
+ boundary="===============5650660729455897039=="
 MIME-Version: 1.0
 
---===============4116316413178211419==
+--===============5650660729455897039==
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 
 Level 0 text
---===============4116316413178211419==
+--===============5650660729455897039==
 Content-Type: text/html; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 
 <p>Level 0 HTML</p>
---===============4116316413178211419==
+--===============5650660729455897039==
 Content-Type: multipart/alternative;
- boundary="===============1625836540705390629=="
+ boundary="===============2444768049289044580=="
 MIME-Version: 1.0
 
---===============1625836540705390629==
+--===============2444768049289044580==
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 
 Level 1 text
---===============1625836540705390629==
+--===============2444768049289044580==
 Content-Type: text/html; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 
 <p>Level 1 HTML</p>
---===============1625836540705390629==
+--===============2444768049289044580==
 Content-Type: multipart/alternative;
- boundary="===============1851970918473369444=="
+ boundary="===============1603513533625163371=="
 MIME-Version: 1.0
 
---===============1851970918473369444==
+--===============1603513533625163371==
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 
 Level 2 text
---===============1851970918473369444==
+--===============1603513533625163371==
 Content-Type: text/html; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 
 <p>Level 2 HTML</p>
---===============1851970918473369444==
+--===============1603513533625163371==
 Content-Type: multipart/alternative;
- boundary="===============8326692049853962017=="
+ boundary="===============4169261437562960685=="
 MIME-Version: 1.0
 
---===============8326692049853962017==
+--===============4169261437562960685==
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 
 Level 3 text
---===============8326692049853962017==
+--===============4169261437562960685==
 Content-Type: text/html; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 
 <p>Level 3 HTML</p>
---===============8326692049853962017==
+--===============4169261437562960685==
 Content-Type: multipart/alternative;
- boundary="===============1660662736637522235=="
+ boundary="===============3074030245501250394=="
 MIME-Version: 1.0
 
---===============1660662736637522235==
+--===============3074030245501250394==
 Content-Type: text/plain; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 
 Level 4 text
---===============1660662736637522235==
+--===============3074030245501250394==
 Content-Type: text/html; charset="us-ascii"
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 
 <p>Level 4 HTML</p>
---===============1660662736637522235==--
+--===============3074030245501250394==--
 
---===============8326692049853962017==--
+--===============4169261437562960685==--
 
---===============1851970918473369444==--
+--===============1603513533625163371==--
 
---===============1625836540705390629==--
+--===============2444768049289044580==--
 
---===============4116316413178211419==--
+--===============5650660729455897039==--
 
---===============1767301184635200035==--
+--===============0710225122019197233==--
