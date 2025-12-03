@@ -39,7 +39,21 @@ class IMAPConnection:
         """Connect to IMAP server."""
         try:
             self.client = IMAPClient(server, port=port, ssl=use_ssl)
-            self.client.login(username, password)
+            # Try login with proper error handling
+            try:
+                self.client.login(username, password)
+            except Exception as login_error:
+                error_msg = str(login_error)
+                # Provide more helpful error messages
+                if 'AUTHENTICATIONFAILED' in error_msg or 'Invalid credentials' in error_msg:
+                    raise RuntimeError(
+                        f"Authentication failed. This may be due to:\n"
+                        f"1. Incorrect username or password\n"
+                        f"2. AOL may require an app password instead of your regular password\n"
+                        f"3. Account may need additional security setup\n"
+                        f"Original error: {error_msg}"
+                    )
+                raise
             self.server = server
             self.username = username
             logger.info(f"Connected to {server} as {username}")
