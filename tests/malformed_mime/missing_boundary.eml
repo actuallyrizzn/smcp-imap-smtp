@@ -1,0 +1,6 @@
+From: test@example.com
+To: recipient@example.com
+Subject: Missing Boundary Test
+Content-Type: multipart/mixed
+
+This should cause parsing issues

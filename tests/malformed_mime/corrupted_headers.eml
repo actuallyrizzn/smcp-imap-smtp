@@ -1,0 +1,7 @@
+To: invalid-email-address
+Subject: Corrupted Headers Test
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+
+Test body

@@ -1,0 +1,21 @@
+From: test@example.com
+To: recipient@example.com
+Subject: Mixed Encoding Test
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============1844001588439890488=="
+
+--===============1844001588439890488==
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+
+ASCII text
+
+--===============1844001588439890488==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+Content-Disposition: attachment
+
+UTF-8 text: 测试
+
+--===============1844001588439890488==--
