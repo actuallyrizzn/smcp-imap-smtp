@@ -122,7 +122,9 @@ smcp-imap-smtp/
 
 ## License
 
-GNU Affero General Public License v3.0
+**Code**: All code in this repository is licensed under the GNU Affero General Public License v3.0 (AGPLv3). See the [LICENSE](LICENSE) file for details.
+
+**Documentation and Other Content**: All non-code content (documentation, images, etc.) is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0). See the [LICENSE-CC-BY-SA](LICENSE-CC-BY-SA) file for details.
 
 ## Development Status
 
