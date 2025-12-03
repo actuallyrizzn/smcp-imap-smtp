@@ -40,6 +40,21 @@ Both tools are designed to be wrapped by UCW, making them instantly usable as SM
 
 #### IMAP Tool
 
+**Using Account Profiles (Recommended):**
+```bash
+# Add an account profile
+python tools/profile_cli.py add --name gmx --imap-server imap.gmx.com --smtp-server mail.gmx.com --username test@gmx.com --password pass
+
+# Set as default profile
+python tools/profile_cli.py set-default --name gmx
+
+# Use profile for operations (uses default if no --account specified)
+python tools/imap/cli.py list-mailboxes --account gmx
+python tools/imap/cli.py search --criteria "ALL" --account gmx
+python tools/imap/cli.py fetch --message-id 12345 --account gmx
+```
+
+**Using Direct Credentials:**
 ```bash
 # Connect to IMAP server (auto-connects if credentials provided)
 python tools/imap/cli.py list-mailboxes --server imap.gmx.com --username test@gmx.com --password pass
@@ -59,6 +74,15 @@ python tools/imap/cli.py delete --message-ids 12345 --server imap.gmx.com --user
 
 #### SMTP Tool
 
+**Using Account Profiles (Recommended):**
+```bash
+# Use profile for sending (uses default if no --account specified)
+python tools/smtp/cli.py send --to recipient@example.com --subject "Test" --body "Hello" --account gmx
+python tools/smtp/cli.py send-html --to recipient@example.com --subject "Test" --html "<html><body>Hello</body></html>" --account gmx
+python tools/smtp/cli.py send-with-attachment --to recipient@example.com --subject "Test" --body "Hello" --attachments file.pdf --account gmx
+```
+
+**Using Direct Credentials:**
 ```bash
 # Send email (auto-connects if credentials provided)
 python tools/smtp/cli.py send --to recipient@example.com --subject "Test" --body "Hello" --server mail.gmx.com --username test@gmx.com --password pass
@@ -67,7 +91,7 @@ python tools/smtp/cli.py send --to recipient@example.com --subject "Test" --body
 python tools/smtp/cli.py send-html --to recipient@example.com --subject "Test" --html "<html><body>Hello</body></html>" --server mail.gmx.com --username test@gmx.com --password pass
 
 # Send email with attachment
-python tools/smtp/cli.py send-with-attachment --to recipient@example.com --subject "Test" --body "Hello" --attachment file.pdf --server mail.gmx.com --username test@gmx.com --password pass
+python tools/smtp/cli.py send-with-attachment --to recipient@example.com --subject "Test" --body "Hello" --attachments file.pdf --server mail.gmx.com --username test@gmx.com --password pass
 ```
 
 ## UCW Wrapping
@@ -139,9 +163,12 @@ We use `imapclient` (not the standard library `imaplib`) because:
 - [Usage Examples](docs/USAGE_EXAMPLES.md) - Detailed usage examples
 - [Configuration Guide](docs/CONFIGURATION.md) - Server configurations and settings
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [Concurrency Guide](docs/CONCURRENCY.md) - Concurrency model and rate limiting
 - [UCW Requirements](docs/UCW_REQUIREMENTS.md) - UCW compatibility requirements
 - [Email Protocol Spec](docs/EMAIL_PROTOCOL_SPEC.md) - Technical specifications
+- [Protocol Failure Profiling](docs/PROTOCOL_FAILURE_PROFILING.md) - Failure modes and error handling
 - [Setup Instructions](SETUP.md) - Virtual environment setup
+- [Changelog](CHANGELOG.md) - Version history and changes
 
 ## License
 
