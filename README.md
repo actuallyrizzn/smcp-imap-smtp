@@ -36,7 +36,23 @@ Both tools are designed to be wrapped by UCW, making them instantly usable as SM
    pip install -r requirements.txt
    ```
 
-### Usage
+## Usage Modes
+
+This project can be used in two ways:
+
+### 1. Standalone CLI Tools
+
+Use the tools directly from the command line for testing, scripting, or manual operations.
+
+### 2. SMCP Plugins (Recommended for Production)
+
+Wrap the tools with UCW and install them as SMCP plugins for use by AI agents.
+
+---
+
+## Usage
+
+### Mode 1: Standalone CLI Tools
 
 #### IMAP Tool
 
@@ -94,9 +110,11 @@ python tools/smtp/cli.py send-html --to recipient@example.com --subject "Test" -
 python tools/smtp/cli.py send-with-attachment --to recipient@example.com --subject "Test" --body "Hello" --attachments file.pdf --server mail.gmx.com --username test@gmx.com --password pass
 ```
 
-## UCW Wrapping
+### Mode 2: SMCP Plugins (Recommended)
 
-Both tools can be wrapped by UCW to become SMCP plugins:
+For production use with SMCP servers and AI agents, wrap the tools with UCW and install them as plugins.
+
+#### Step 1: Wrap Tools with UCW
 
 ```bash
 # Wrap IMAP tool
@@ -105,6 +123,33 @@ python ucw/cli.py wrap tools/imap/cli.py --output plugins/imap/cli.py
 # Wrap SMTP tool
 python ucw/cli.py wrap tools/smtp/cli.py --output plugins/smtp/cli.py
 ```
+
+#### Step 2: Install in SMCP Server
+
+Copy the wrapped plugins to your SMCP server's plugin directory:
+
+```bash
+# For SanctumOS SMCP
+cp plugins/imap/cli.py /path/to/sanctumos-smcp/plugins/imap/
+cp plugins/smtp/cli.py /path/to/sanctumos-smcp/plugins/smtp/
+
+# For Animus SMCP
+cp plugins/imap/cli.py /path/to/animus-smcp/plugins/imap/
+cp plugins/smtp/cli.py /path/to/animus-smcp/plugins/smtp/
+```
+
+#### Step 3: Restart SMCP Server
+
+The SMCP server will automatically discover the plugins and register them as available tools. AI agents can then use them via the SMCP protocol.
+
+#### Plugin Usage in SMCP
+
+Once installed, agents can call the tools through SMCP:
+
+- **IMAP Tools**: `imap_list_mailboxes`, `imap_search`, `imap_fetch`, `imap_send`, etc.
+- **SMTP Tools**: `smtp_send`, `smtp_send_html`, `smtp_send_with_attachment`
+
+The SMCP server handles authentication, parameter passing, and response formatting automatically.
 
 ## Project Structure
 
