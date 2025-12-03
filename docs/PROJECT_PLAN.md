@@ -4,7 +4,9 @@
 
 This project aims to create comprehensive command-line tools for IMAP (email reading) and SMTP (email sending) that can be wrapped by UCW (Universal Command Wrapper) to become SMCP plugins. This approach simplifies development by building standard CLI tools that UCW can automatically convert into SMCP-compatible plugins, eliminating the need for full SMCP server integration during development and testing.
 
-**Key Insight**: We don't need to build full SMCP plugins directly. Instead, we build well-structured CLI tools that UCW can wrap, making them instantly usable as SMCP plugins.
+**Key Insights**:
+1. **UCW-Based Approach**: We don't need to build full SMCP plugins directly. Instead, we build well-structured CLI tools that UCW can wrap, making them instantly usable as SMCP plugins.
+2. **Single Python Implementation**: Build **one cross-platform Python implementation** - no platform-specific builds, no compiled binaries, no Windows/Linux split. Python scripts are the natural substrate for UCW and SMCP, and they run everywhere SanctumOS agents need to run (Windows dev workstations, Linux ARM backpacks, remote servers, etc.).
 
 ## Project Goals
 
@@ -467,16 +469,24 @@ This structure becomes the lingua franca for agentic reasoning, abstracting away
 
 ## Dependencies
 
-### Python Libraries
-- `imaplib` (standard library) or `imapclient` (recommended)
-- `smtplib` (standard library) or `aiosmtplib` (for async)
-- `email` (standard library) for email parsing/construction
-- `argparse` (standard library) for CLI
-- `json` (standard library) for output formatting
+### Core Python Libraries (Standard Library)
+- `imaplib` - IMAP protocol support (standard library)
+- `smtplib` - SMTP protocol support (standard library)
+- `email` - Email parsing and construction (standard library)
+- `argparse` - CLI argument parsing (standard library)
+- `json` - JSON output formatting (standard library)
+- `ssl` - SSL/TLS support (standard library)
+- `subprocess` - Process execution (standard library)
 
-### Optional
-- `python-dotenv` for environment variable management
-- `cryptography` for advanced security features
+### Recommended Third-Party Libraries
+- `imapclient` - More feature-rich IMAP client (recommended over raw `imaplib`)
+- `python-dotenv` - Environment variable management (optional, for `.env` files)
+
+### Platform Considerations
+- **No platform-specific dependencies**: All libraries work cross-platform
+- **No compiled extensions required**: Pure Python implementation
+- **Minimal external dependencies**: Reduces deployment friction across Windows/Linux/ARM
+- **Standard library first**: Prefer stdlib solutions where possible for maximum portability
 
 ## Testing Strategy
 
@@ -522,9 +532,9 @@ This structure becomes the lingua franca for agentic reasoning, abstracting away
 6. ✅ Security best practices implemented
 7. ✅ Ready for production use
 
-## Architecture Simplification: UCW-Based Approach
+## Architecture Decisions
 
-### Why UCW Simplifies Development
+### UCW-Based Approach
 
 Instead of building full SMCP plugins directly, we build **standard CLI tools** that UCW can automatically wrap:
 
@@ -533,6 +543,39 @@ Instead of building full SMCP plugins directly, we build **standard CLI tools** 
 3. **Automatic Integration**: UCW handles SMCP plugin generation
 4. **Standard Patterns**: Use standard argparse, JSON output - no SMCP-specific code needed
 5. **Flexibility**: CLI tools can be used standalone OR as SMCP plugins
+
+### Single Python Implementation (Cross-Platform)
+
+**Decision**: Build **one Python implementation** that runs cross-platform. No platform-specific builds, no compiled binaries, no Windows/Linux split.
+
+**Why Python for this project**:
+
+1. **UCW + Python is the expected ecosystem**: UCW wraps scripts, not compiled binaries. SMCP treats plugins as opaque executables via stdin/stdout. Python fits perfectly.
+
+2. **Deployment targets vary wildly**: SanctumOS agents run on:
+   - Windows dev workstations
+   - Linux ARM backpacks (Jetson, Pi-5)
+   - Linux amd64 remote servers
+   - Mixed Windows/Linux Animus client hosts
+   
+   A single Python script runs on all of them with zero operational friction.
+
+3. **IMAP/SMTP libraries are Python-first**: The most stable libraries (`imapclient`, `email`, `smtplib`) are Python-native. Python already has reliable MIME parsing, battle-tested SSL/TLS, easy JSON encoding, and sane subprocess patterns.
+
+4. **Python isolates complexity**: Sandbox mode, normalization layers, concurrency-safe access, malformed MIME recovery - all straightforward in Python. In Bash or compiled environments, this becomes much harder.
+
+5. **Python scripts ARE plugins**: UCW sees plugins as "things I can call with parameters." A Python script is indistinguishable from a compiled plugin for UCW's purposes.
+
+6. **Avoids dependency hell**: Windows-only plugins break Linux agents. Linux-only plugins break Windows dev environments. Python sidesteps all of it.
+
+7. **Future-proofing**: When SanctumOS matures into multi-node deployments and agent graph execution, the consistency of Python-based tools will matter more than raw performance. This is a sensory layer, not a hot loop.
+
+**Implementation**:
+- Single Python codebase (`tools/imap/cli.py`, `tools/smtp/cli.py`)
+- Standard library + minimal dependencies (`imaplib`, `smtplib`, `email`, `imapclient` if needed)
+- No compile step, no platform-specific build chain
+- Arguments, stdout, JSON → guaranteed consistent on any OS
+- If performance becomes an issue later, optimize targeted sections (but email I/O is network-bound, not CPU-bound)
 
 ### Development Workflow
 
