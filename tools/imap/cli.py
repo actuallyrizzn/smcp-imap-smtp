@@ -47,6 +47,29 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[IMAPConnection], bool]
     if conn:
         return conn, False
     
+    # Check for account profile first
+    account_name = args.get("account")
+    if account_name:
+        try:
+            from tools.config import ProfileManager
+            manager = ProfileManager()
+            profile = manager.get_profile(account_name)
+            if profile:
+                server = profile.imap_server
+                username = profile.username
+                password = profile.password
+                port = profile.imap_port
+                use_ssl = profile.imap_ssl
+            else:
+                return None, False
+        except ImportError:
+            # Config module not available, fall through to direct args
+            pass
+        except Exception as e:
+            logger.warning(f"Failed to load profile {account_name}: {e}")
+            # Fall through to direct args
+    
+    # Use direct arguments or environment variables
     server = args.get("server")
     username = args.get("username")
     password = args.get("password")
@@ -58,6 +81,21 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[IMAPConnection], bool]
         username = os.getenv('IMAP_USERNAME')
     if not password:
         password = os.getenv('IMAP_PASSWORD')
+    
+    # Try default profile if no account specified and no direct args
+    if not server and not username and not password:
+        try:
+            from tools.config import ProfileManager
+            manager = ProfileManager()
+            default_profile = manager.get_default()
+            if default_profile:
+                server = default_profile.imap_server
+                username = default_profile.username
+                password = default_profile.password
+                port = default_profile.imap_port
+                use_ssl = default_profile.imap_ssl
+        except (ImportError, Exception):
+            pass
     
     if server and username and password:
         try:
