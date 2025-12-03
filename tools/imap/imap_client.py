@@ -94,14 +94,21 @@ class IMAPConnection:
             raise RuntimeError("Not connected to IMAP server")
         
         folders = self.client.list_folders()
-        return [
-            {
-                "name": folder[2],
-                "delimiter": folder[1],
-                "flags": [f.decode() if isinstance(f, bytes) else str(f) for f in folder[0]]
-            }
-            for folder in folders
-        ]
+        result = []
+        for folder in folders:
+            name = folder[2]
+            if isinstance(name, bytes):
+                name = name.decode('utf-8', errors='replace')
+            delimiter = folder[1]
+            if isinstance(delimiter, bytes):
+                delimiter = delimiter.decode('utf-8', errors='replace')
+            flags = [f.decode('utf-8', errors='replace') if isinstance(f, bytes) else str(f) for f in folder[0]]
+            result.append({
+                "name": name,
+                "delimiter": delimiter,
+                "flags": flags
+            })
+        return result
     
     def select_mailbox(self, mailbox: str) -> Dict[str, Any]:
         """Select a mailbox."""
