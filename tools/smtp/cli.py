@@ -51,6 +51,29 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
     if conn:
         return conn, False
     
+    # Check for account profile first
+    account_name = args.get("account")
+    if account_name:
+        try:
+            from tools.config import ProfileManager
+            manager = ProfileManager()
+            profile = manager.get_profile(account_name)
+            if profile:
+                server = profile.smtp_server
+                username = profile.username
+                password = profile.password
+                port = profile.smtp_port
+                use_tls = profile.smtp_tls
+            else:
+                return None, False
+        except ImportError:
+            # Config module not available, fall through to direct args
+            pass
+        except Exception as e:
+            # Fall through to direct args on error
+            pass
+    
+    # Use direct arguments or environment variables
     server = args.get("server")
     username = args.get("username")
     password = args.get("password")
@@ -62,6 +85,21 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
         username = os.getenv('SMTP_USERNAME') or os.getenv('IMAP_USERNAME')
     if not password:
         password = os.getenv('SMTP_PASSWORD') or os.getenv('IMAP_PASSWORD')
+    
+    # Try default profile if no account specified and no direct args
+    if not server and not username and not password:
+        try:
+            from tools.config import ProfileManager
+            manager = ProfileManager()
+            default_profile = manager.get_default_profile()
+            if default_profile:
+                server = default_profile.smtp_server
+                username = default_profile.username
+                password = default_profile.password
+                port = default_profile.smtp_port
+                use_tls = default_profile.smtp_tls
+        except (ImportError, Exception):
+            pass
     
     if server and username and password:
         try:
@@ -342,11 +380,101 @@ def send_with_attachment(args: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+def get_plugin_description() -> Dict[str, Any]:
+    """Return structured plugin description for --describe."""
+    return {
+        "plugin": {
+            "name": "smtp",
+            "version": "0.1.0",
+            "description": "SMTP email sending tool (UCW-compatible)"
+        },
+        "commands": [
+            {
+                "name": "connect",
+                "description": "Connect to SMTP server",
+                "parameters": [
+                    {"name": "server", "type": "string", "description": "SMTP server hostname", "required": True, "default": None},
+                    {"name": "username", "type": "string", "description": "SMTP username", "required": True, "default": None},
+                    {"name": "password", "type": "string", "description": "SMTP password", "required": True, "default": None},
+                    {"name": "port", "type": "integer", "description": "SMTP server port", "required": False, "default": 587},
+                    {"name": "use_tls", "type": "boolean", "description": "Use TLS/SSL", "required": False, "default": True},
+                    {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None}
+                ]
+            },
+            {
+                "name": "disconnect",
+                "description": "Disconnect from SMTP server",
+                "parameters": []
+            },
+            {
+                "name": "send",
+                "description": "Send plain text email",
+                "parameters": [
+                    {"name": "to", "type": "array", "description": "Recipient email address(es)", "required": True, "default": None},
+                    {"name": "subject", "type": "string", "description": "Email subject", "required": True, "default": None},
+                    {"name": "body", "type": "string", "description": "Email body (plain text)", "required": True, "default": None},
+                    {"name": "from", "type": "string", "description": "From email address (default: username)", "required": False, "default": None},
+                    {"name": "cc", "type": "array", "description": "CC recipient(s)", "required": False, "default": []},
+                    {"name": "bcc", "type": "array", "description": "BCC recipient(s)", "required": False, "default": []},
+                    {"name": "reply_to", "type": "string", "description": "Reply-To email address", "required": False, "default": None},
+                    {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None},
+                    {"name": "server", "type": "string", "description": "SMTP server hostname (for auto-connect)", "required": False, "default": None},
+                    {"name": "username", "type": "string", "description": "SMTP username (for auto-connect)", "required": False, "default": None},
+                    {"name": "password", "type": "string", "description": "SMTP password (for auto-connect)", "required": False, "default": None},
+                    {"name": "port", "type": "integer", "description": "SMTP server port (default: 587, for auto-connect)", "required": False, "default": 587},
+                    {"name": "use_tls", "type": "boolean", "description": "Use TLS/SSL (default: True, for auto-connect)", "required": False, "default": True}
+                ]
+            },
+            {
+                "name": "send-html",
+                "description": "Send HTML email",
+                "parameters": [
+                    {"name": "to", "type": "array", "description": "Recipient email address(es)", "required": True, "default": None},
+                    {"name": "subject", "type": "string", "description": "Email subject", "required": True, "default": None},
+                    {"name": "html_body", "type": "string", "description": "Email body (HTML)", "required": True, "default": None},
+                    {"name": "text_body", "type": "string", "description": "Plain text alternative body", "required": False, "default": None},
+                    {"name": "from", "type": "string", "description": "From email address (default: username)", "required": False, "default": None},
+                    {"name": "cc", "type": "array", "description": "CC recipient(s)", "required": False, "default": []},
+                    {"name": "bcc", "type": "array", "description": "BCC recipient(s)", "required": False, "default": []},
+                    {"name": "reply_to", "type": "string", "description": "Reply-To email address", "required": False, "default": None},
+                    {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None},
+                    {"name": "server", "type": "string", "description": "SMTP server hostname (for auto-connect)", "required": False, "default": None},
+                    {"name": "username", "type": "string", "description": "SMTP username (for auto-connect)", "required": False, "default": None},
+                    {"name": "password", "type": "string", "description": "SMTP password (for auto-connect)", "required": False, "default": None},
+                    {"name": "port", "type": "integer", "description": "SMTP server port (default: 587, for auto-connect)", "required": False, "default": 587},
+                    {"name": "use_tls", "type": "boolean", "description": "Use TLS/SSL (default: True, for auto-connect)", "required": False, "default": True}
+                ]
+            },
+            {
+                "name": "send-with-attachment",
+                "description": "Send email with attachments",
+                "parameters": [
+                    {"name": "to", "type": "array", "description": "Recipient email address(es)", "required": True, "default": None},
+                    {"name": "subject", "type": "string", "description": "Email subject", "required": True, "default": None},
+                    {"name": "body", "type": "string", "description": "Email body", "required": True, "default": None},
+                    {"name": "attachments", "type": "array", "description": "Attachment file path(s)", "required": True, "default": None},
+                    {"name": "from", "type": "string", "description": "From email address (default: username)", "required": False, "default": None},
+                    {"name": "cc", "type": "array", "description": "CC recipient(s)", "required": False, "default": []},
+                    {"name": "bcc", "type": "array", "description": "BCC recipient(s)", "required": False, "default": []},
+                    {"name": "reply_to", "type": "string", "description": "Reply-To email address", "required": False, "default": None},
+                    {"name": "html", "type": "boolean", "description": "Body is HTML (default: plain text)", "required": False, "default": False},
+                    {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None},
+                    {"name": "server", "type": "string", "description": "SMTP server hostname (for auto-connect)", "required": False, "default": None},
+                    {"name": "username", "type": "string", "description": "SMTP username (for auto-connect)", "required": False, "default": None},
+                    {"name": "password", "type": "string", "description": "SMTP password (for auto-connect)", "required": False, "default": None},
+                    {"name": "port", "type": "integer", "description": "SMTP server port (default: 587, for auto-connect)", "required": False, "default": 587},
+                    {"name": "use_tls", "type": "boolean", "description": "Use TLS/SSL (default: True, for auto-connect)", "required": False, "default": True}
+                ]
+            }
+        ]
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="SMTP email sending tool (UCW-compatible)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=""" 
 Available commands:
   connect              Connect to SMTP server
   disconnect           Disconnect from SMTP server
@@ -360,6 +488,10 @@ Examples:
   python cli.py send-html --to recipient@example.com --subject "Test" --html-body "<html>Hello</html>"
         """
     )
+    
+    # Add --describe flag before subparsers
+    parser.add_argument("--describe", action="store_true",
+                       help="Output plugin description in JSON format")
     
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
@@ -422,6 +554,12 @@ Examples:
     add_connection_args(send_attach_parser)
     
     args = parser.parse_args()
+    
+    # Handle --describe before checking for command
+    if args.describe:
+        description = get_plugin_description()
+        print(json.dumps(description, indent=2))
+        sys.exit(0)
     
     if not args.command:
         parser.print_help()

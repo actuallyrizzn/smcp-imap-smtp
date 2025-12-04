@@ -198,6 +198,13 @@ We use `imapclient` (not the standard library `imaplib`) because:
 - **Better Unicode support**: Handles encoding issues more gracefully
 - **Active maintenance**: Regularly updated with bug fixes and improvements
 
+### Dependencies
+
+**Required:**
+- `imapclient>=2.3.1` - IMAP client library (used instead of standard library `imaplib`)
+
+See `requirements.txt` for the complete list of dependencies.
+
 ## Related Projects
 
 - **[LettaAI](https://github.com/letta-ai/letta)** - LettaAI, the AI agent framework that SMCP is built for (though SMCP is not exclusively for LettaAI)
