@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - IMAP and SMTP connections now timeout after 30 seconds instead of hanging indefinitely (important for subprocess execution in SMCP)
+- Fixed profile loading bug in `_auto_connect` - profile values were being overwritten by args.get()
+- Fixed SMTP `get_default_profile()` method name to `get_default()` to match ProfileManager API
 - Account profile management system (`tools/profile_cli.py`)
 - `--account` flag support in IMAP/SMTP commands
 - Comprehensive test suite (33 tests covering IMAP, SMTP, MIME edge cases, concurrency, integration)

@@ -49,6 +49,7 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[IMAPConnection], bool]
     
     # Check for account profile first
     account_name = args.get("account")
+    profile_loaded = False
     if account_name:
         try:
             from tools.config import ProfileManager
@@ -60,21 +61,23 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[IMAPConnection], bool]
                 password = profile.password
                 port = profile.imap_port
                 use_ssl = profile.imap_ssl
+                profile_loaded = True
             else:
                 return None, False
         except ImportError:
             # Config module not available, fall through to direct args
             pass
         except Exception as e:
-            logger.warning(f"Failed to load profile {account_name}: {e}")
-            # Fall through to direct args
+            # Fall through to direct args on error
+            pass
     
-    # Use direct arguments or environment variables
-    server = args.get("server")
-    username = args.get("username")
-    password = args.get("password")
-    port = args.get("port", 993)
-    use_ssl = args.get("use_ssl", True)
+    # Use direct arguments or environment variables (only if profile wasn't loaded)
+    if not profile_loaded:
+        server = args.get("server")
+        username = args.get("username")
+        password = args.get("password")
+        port = args.get("port", 993)
+        use_ssl = args.get("use_ssl", True)
     
     import os
     if not username:

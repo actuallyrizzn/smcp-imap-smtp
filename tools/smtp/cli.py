@@ -53,6 +53,7 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
     
     # Check for account profile first
     account_name = args.get("account")
+    profile_loaded = False
     if account_name:
         try:
             from tools.config import ProfileManager
@@ -64,6 +65,7 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
                 password = profile.password
                 port = profile.smtp_port
                 use_tls = profile.smtp_tls
+                profile_loaded = True
             else:
                 return None, False
         except ImportError:
@@ -73,12 +75,13 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
             # Fall through to direct args on error
             pass
     
-    # Use direct arguments or environment variables
-    server = args.get("server")
-    username = args.get("username")
-    password = args.get("password")
-    port = args.get("port", 587)
-    use_tls = args.get("use_tls", True)
+    # Use direct arguments or environment variables (only if profile wasn't loaded)
+    if not profile_loaded:
+        server = args.get("server")
+        username = args.get("username")
+        password = args.get("password")
+        port = args.get("port", 587)
+        use_tls = args.get("use_tls", True)
     
     import os
     if not username:
@@ -91,7 +94,7 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
         try:
             from tools.config import ProfileManager
             manager = ProfileManager()
-            default_profile = manager.get_default_profile()
+            default_profile = manager.get_default()
             if default_profile:
                 server = default_profile.smtp_server
                 username = default_profile.username
