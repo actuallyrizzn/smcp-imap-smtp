@@ -40,7 +40,8 @@ class IMAPConnection:
     def connect(self, server: str, username: str, password: str, port: int = 993, use_ssl: bool = True) -> None:
         """Connect to IMAP server."""
         try:
-            self.client = IMAPClient(server, port=port, ssl=use_ssl)
+            # Add timeout to prevent hanging connections (30 seconds)
+            self.client = IMAPClient(server, port=port, ssl=use_ssl, timeout=30)
             # Try login with proper error handling
             try:
                 # Try standard login first

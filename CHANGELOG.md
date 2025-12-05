@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--describe` command support for SMCP plugin discovery (IMAP and SMTP)
 - Full parameter schemas for all commands via `--describe` JSON output
 - Account profile support in SMTP `_auto_connect` function
+- Connection timeout (30 seconds) for IMAP and SMTP to prevent hanging connections
+
+### Fixed
+- IMAP and SMTP connections now timeout after 30 seconds instead of hanging indefinitely (important for subprocess execution in SMCP)
 - Account profile management system (`tools/profile_cli.py`)
 - `--account` flag support in IMAP/SMTP commands
 - Comprehensive test suite (33 tests covering IMAP, SMTP, MIME edge cases, concurrency, integration)

@@ -39,7 +39,8 @@ class SMTPConnection:
     def connect(self, host: str, username: str, password: str, port: int = 587, use_tls: bool = True) -> None:
         """Connect to SMTP server."""
         try:
-            self.server = smtplib.SMTP(host, port)
+            # Add timeout to prevent hanging connections (30 seconds)
+            self.server = smtplib.SMTP(host, port, timeout=30)
             if use_tls:
                 self.server.starttls()
             self.server.login(username, password)
