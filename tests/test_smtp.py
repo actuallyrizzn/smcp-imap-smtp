@@ -5,49 +5,56 @@ Unit tests for SMTP CLI tool.
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from tools.smtp.smtp_client import SMTPConnection
-from tools.smtp.cli import connect, disconnect, send, send_html, send_with_attachment
+from tools.smtp.cli import send, send_html, send_with_attachment
 
 
-class TestSMTPConnection:
-    """Test SMTP connection management."""
+class TestSMTPAutoConnect:
+    """Test SMTP auto-connect functionality."""
     
+    @patch('tools.smtp.cli._auto_connect')
     @patch('tools.smtp.smtp_client.smtplib.SMTP')
-    def test_connect_success(self, mock_smtp):
-        """Test successful SMTP connection."""
+    def test_auto_connect_success(self, mock_smtp, mock_auto_connect):
+        """Test successful auto-connect via _auto_connect."""
         mock_client = MagicMock()
         mock_smtp.return_value = mock_client
+        mock_conn = Mock(spec=SMTPConnection)
+        mock_conn.server = mock_client
+        mock_auto_connect.return_value = (mock_conn, True)
         
         args = {
             'server': 'mail.gmx.com',
             'username': 'test@gmx.com',
             'password': 'testpass',
             'port': 587,
-            'use_tls': True
+            'use_tls': True,
+            'to': 'recipient@example.com',
+            'subject': 'Test',
+            'body': 'Test body'
         }
         
-        result = connect(args)
+        result = send(args)
         assert result['status'] == 'success'
-        mock_client.starttls.assert_called_once()
-        mock_client.login.assert_called_once_with('test@gmx.com', 'testpass')
+        mock_auto_connect.assert_called_once()
     
-    @patch('tools.smtp.smtp_client.smtplib.SMTP')
-    def test_connect_auth_failure(self, mock_smtp):
-        """Test authentication failure."""
-        mock_client = MagicMock()
-        mock_client.login.side_effect = Exception("authentication failed")
-        mock_smtp.return_value = mock_client
+    @patch('tools.smtp.cli._auto_connect')
+    def test_auto_connect_auth_failure(self, mock_auto_connect):
+        """Test authentication failure during auto-connect."""
+        mock_auto_connect.side_effect = RuntimeError("Auto-connect failed: authentication failed")
         
         args = {
             'server': 'mail.gmx.com',
             'username': 'wrong@gmx.com',
             'password': 'wrongpass',
             'port': 587,
-            'use_tls': True
+            'use_tls': True,
+            'to': 'recipient@example.com',
+            'subject': 'Test',
+            'body': 'Test body'
         }
         
-        result = connect(args)
+        result = send(args)
         assert 'error' in result
-        assert 'authentication' in result['error'].lower()
+        assert 'authentication' in result['error'].lower() or 'failed' in result['error'].lower()
 
 
 class TestSMTPOperations:

@@ -41,7 +41,8 @@ class TestConcurrency:
         
         conn = IMAPConnection()
         conn.connect('imap.gmx.com', 'test@gmx.com', 'pass')
-        conn.select_mailbox('INBOX')
+        # Mailbox selection is now done per-command, not stored
+        # So we'll just test that fetch_email works without explicit selection
         
         # Mock fetch_email to return different results for each UID
         def mock_fetch_email(uid, *args, **kwargs):

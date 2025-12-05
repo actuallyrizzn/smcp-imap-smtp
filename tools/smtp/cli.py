@@ -54,6 +54,10 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
     # Check for account profile first
     account_name = args.get("account")
     profile_loaded = False
+    imap_server = None
+    imap_port = None
+    imap_ssl = None
+    
     if account_name:
         try:
             from tools.config import ProfileManager
@@ -65,6 +69,10 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
                 password = profile.password
                 port = profile.smtp_port
                 use_tls = profile.smtp_tls
+                # Also get IMAP settings from profile for Sent folder save
+                imap_server = profile.imap_server
+                imap_port = profile.imap_port
+                imap_ssl = profile.imap_ssl
                 profile_loaded = True
             else:
                 return None, False
@@ -82,6 +90,10 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
         password = args.get("password")
         port = args.get("port", 587)
         use_tls = args.get("use_tls", True)
+        # Get IMAP settings from args if provided
+        imap_server = args.get("imap_server")
+        imap_port = args.get("imap_port")
+        imap_ssl = args.get("imap_ssl")
     
     import os
     if not username:
@@ -101,6 +113,10 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
                 password = default_profile.password
                 port = default_profile.smtp_port
                 use_tls = default_profile.smtp_tls
+                # Also get IMAP settings from default profile
+                imap_server = default_profile.imap_server
+                imap_port = default_profile.imap_port
+                imap_ssl = default_profile.imap_ssl
         except (ImportError, Exception):
             pass
     
@@ -108,6 +124,16 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
         try:
             conn = SMTPConnection()
             conn.connect(server, username, password, port, use_tls)
+            
+            # Set IMAP server settings if available (for Sent folder save)
+            # These may come from profile or from args
+            if imap_server:
+                conn.imap_server = imap_server
+            if imap_port is not None:
+                conn.imap_port = imap_port
+            if imap_ssl is not None:
+                conn.imap_ssl = imap_ssl
+            
             set_connection(conn)
             return conn, True
         except Exception as e:
@@ -412,6 +438,10 @@ Examples:
         parser.add_argument("--password", help="SMTP password (for auto-connect)")
         parser.add_argument("--port", type=int, default=587, help="SMTP server port (default: 587, for auto-connect)")
         parser.add_argument("--use-tls", action="store_true", default=True, dest="use_tls", help="Use TLS/SSL (default: True, for auto-connect)")
+        # Optional IMAP server settings for Sent folder save
+        parser.add_argument("--imap-server", dest="imap_server", help="IMAP server hostname (for saving to Sent folder, defaults to derived from SMTP server)")
+        parser.add_argument("--imap-port", type=int, dest="imap_port", help="IMAP server port (default: 993, for Sent folder save)")
+        parser.add_argument("--imap-ssl", action="store_true", dest="imap_ssl", help="Use SSL for IMAP (default: True, for Sent folder save)")
     
     # Send command
     send_parser = subparsers.add_parser("send", help="Send plain text email")
@@ -466,11 +496,7 @@ Examples:
         args_dict = vars(args)
         
         # Execute command
-        if args.command == "connect":
-            result = connect(args_dict)
-        elif args.command == "disconnect":
-            result = disconnect(args_dict)
-        elif args.command == "send":
+        if args.command == "send":
             result = send(args_dict)
         elif args.command == "send-html":
             result = send_html(args_dict)

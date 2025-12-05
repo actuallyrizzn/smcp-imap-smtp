@@ -32,11 +32,14 @@ class SMTPConnection:
     
     def __init__(self):
         self.server: Optional[smtplib.SMTP] = None
-        self.host: Optional[str] = None
+        self.host: Optional[str] = None  # SMTP server hostname (for IMAP fallback)
         self.port: Optional[int] = None
         self.username: Optional[str] = None
         self.password: Optional[str] = None  # Store password for IMAP save
         self.use_tls: bool = True
+        self.imap_server: Optional[str] = None  # Optional explicit IMAP server
+        self.imap_port: Optional[int] = None  # Optional explicit IMAP port
+        self.imap_ssl: Optional[bool] = None  # Optional explicit IMAP SSL setting
     
     def connect(self, host: str, username: str, password: str, port: int = 587, use_tls: bool = True) -> None:
         """Connect to SMTP server."""
@@ -232,51 +235,106 @@ class SMTPConnection:
         """
         try:
             # Try to import IMAP client (may not be available)
-            try:
-                from tools.imap.imap_client import IMAPConnection
-            except ImportError:
-                logger.warning("IMAP client not available, skipping save to Sent folder")
-                return
+            # Try multiple import paths for plugin structure compatibility
+            IMAPConnection = None
+            import_paths = [
+                'tools.imap.imap_client',
+                'plugins.imap.imap_client',
+            ]
             
-            # Need IMAP server details - try to get from profile
+            for import_path in import_paths:
+                try:
+                    module = __import__(import_path, fromlist=['IMAPConnection'])
+                    IMAPConnection = module.IMAPConnection
+                    break
+                except ImportError:
+                    continue
+            
+            if IMAPConnection is None:
+                # Last resort: try relative import if we're in tools package
+                try:
+                    import sys
+                    import os
+                    # Check if we're in tools package structure
+                    current_file = os.path.abspath(__file__)
+                    if 'tools' in current_file:
+                        # Try to find imap_client relative to smtp_client
+                        tools_dir = os.path.dirname(os.path.dirname(current_file))
+                        imap_client_path = os.path.join(tools_dir, 'imap', 'imap_client.py')
+                        if os.path.exists(imap_client_path):
+                            # Add to path and import
+                            if tools_dir not in sys.path:
+                                sys.path.insert(0, tools_dir)
+                            from imap.imap_client import IMAPConnection
+                except Exception:
+                    logger.warning("IMAP client not available, skipping save to Sent folder")
+                    return
+            
+            # Need IMAP server details - try multiple sources
             if not self.username or not self.password:
                 logger.warning("Missing credentials, skipping save to Sent folder")
                 return
             
-            # Try to get IMAP server from profile manager
-            imap_server = None
-            imap_port = 993
-            imap_ssl = True
+            # Priority 1: Explicit IMAP server settings (if provided)
+            imap_server = self.imap_server
+            imap_port = self.imap_port if self.imap_port is not None else 993
+            imap_ssl = self.imap_ssl if self.imap_ssl is not None else True
             password = self.password
             
-            try:
-                from tools.config import ProfileManager
-                manager = ProfileManager()
-                # Try to find profile by username
-                for profile_name in manager.list_profiles():
-                    profile = manager.get_profile(profile_name)
-                    if profile and profile.username == self.username:
-                        imap_server = profile.imap_server
-                        imap_port = profile.imap_port
-                        imap_ssl = profile.imap_ssl
-                        password = profile.password
-                        break
+            # Priority 2: Try to get from profile manager
+            if not imap_server:
+                try:
+                    from tools.config import ProfileManager
+                    manager = ProfileManager()
+                    # Try to find profile by username
+                    for profile_name in manager.list_profiles():
+                        profile = manager.get_profile(profile_name)
+                        if profile and profile.username == self.username:
+                            imap_server = profile.imap_server
+                            imap_port = profile.imap_port
+                            imap_ssl = profile.imap_ssl
+                            password = profile.password
+                            break
+                    
+                    # If no profile found, try default
+                    if not imap_server:
+                        default_profile = manager.get_default()
+                        if default_profile and default_profile.username == self.username:
+                            imap_server = default_profile.imap_server
+                            imap_port = default_profile.imap_port
+                            imap_ssl = default_profile.imap_ssl
+                            password = default_profile.password
+                except Exception as e:
+                    logger.debug(f"Could not load profile for IMAP save: {e}")
+                    # Continue with fallback attempt
+                    pass
+            
+            # Priority 3: Derive IMAP server from SMTP server (common pattern)
+            if not imap_server and self.host:
+                # Common patterns: mail.domain.com -> imap.domain.com
+                # Or same hostname for many providers
+                smtp_host = self.host.lower()
                 
-                # If no profile found, try default
-                if not imap_server:
-                    default_profile = manager.get_default()
-                    if default_profile and default_profile.username == self.username:
-                        imap_server = default_profile.imap_server
-                        imap_port = default_profile.imap_port
-                        imap_ssl = default_profile.imap_ssl
-                        password = default_profile.password
-            except Exception as e:
-                logger.warning(f"Could not load profile for IMAP save: {e}")
-                # Continue with direct connection attempt if we have server info
-                pass
+                # Try common IMAP hostname patterns
+                if smtp_host.startswith('mail.'):
+                    imap_server = smtp_host.replace('mail.', 'imap.', 1)
+                elif smtp_host.startswith('smtp.'):
+                    imap_server = smtp_host.replace('smtp.', 'imap.', 1)
+                elif 'mail' in smtp_host and 'smtp' not in smtp_host:
+                    # For hosts like mail.gmx.com, try imap.gmx.com
+                    parts = smtp_host.split('.')
+                    if len(parts) >= 2:
+                        # Replace first part (mail) with imap
+                        parts[0] = 'imap'
+                        imap_server = '.'.join(parts)
+                else:
+                    # Many providers use the same hostname for both
+                    imap_server = smtp_host
+                
+                logger.debug(f"Derived IMAP server '{imap_server}' from SMTP server '{self.host}'")
             
             if not imap_server:
-                logger.warning("IMAP server not configured, skipping save to Sent folder")
+                logger.warning("IMAP server not configured and could not be derived, skipping save to Sent folder")
                 return
             
             # Connect to IMAP and save

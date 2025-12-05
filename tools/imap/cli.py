@@ -154,44 +154,6 @@ def list_mailboxes(args: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
-def select_mailbox(args: Dict[str, Any]) -> Dict[str, Any]:
-    """Select a mailbox."""
-    mailbox = args.get("mailbox")
-    
-    if not mailbox:
-        return {
-            "error": "Missing required argument: mailbox"
-        }
-    
-    try:
-        conn, auto_connected = _auto_connect(args)
-        if not conn:
-            return {
-                "error": "Not connected to IMAP server. Provide --server, --username, --password (or --account) to auto-connect."
-            }
-        
-        try:
-            folder_info = conn.select_mailbox(mailbox)
-            result = {
-                "status": "success",
-                "result": folder_info
-            }
-            # Don't auto-disconnect for select (may want to use connection after)
-            return result
-        except Exception as e:
-            if auto_connected:
-                try:
-                    conn.disconnect()
-                    set_connection(None)
-                except:
-                    pass
-            raise
-    except RuntimeError as e:
-        return {"error": str(e)}
-    except Exception as e:
-        return {
-            "error": f"Failed to select mailbox: {str(e)}"
-        }
 
 
 def search(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -211,18 +173,19 @@ def search(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
-            # Auto-select INBOX if no mailbox is selected
-            if not conn.current_mailbox:
-                conn.select_mailbox('INBOX')
+            # Select mailbox from argument, default to INBOX
+            mailbox = args.get("mailbox", "INBOX")
+            conn.select_mailbox(mailbox)
             
             uids = conn.search(criteria)
             result = {
                 "status": "success",
-                "result": {
-                    "criteria": criteria,
-                    "message_ids": uids,
-                    "count": len(uids)
-                }
+            "result": {
+                "criteria": criteria,
+                "mailbox": mailbox,
+                "message_ids": uids,
+                "count": len(uids)
+            }
             }
             if auto_connected:
                 try:
@@ -273,14 +236,12 @@ def fetch(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
-            # Auto-select INBOX if no mailbox is selected
-            if not conn.current_mailbox:
-                conn.select_mailbox('INBOX')
+            # Select mailbox from argument, default to INBOX
+            mailbox = args.get("mailbox", "INBOX")
+            conn.select_mailbox(mailbox)
             
             email_data = conn.fetch_email(uid, max_body_bytes, max_attachment_bytes)
-            # Set mailbox if known
-            if conn.current_mailbox:
-                email_data["mailbox"] = conn.current_mailbox
+            email_data["mailbox"] = mailbox
             
             result = {
                 "status": "success",
@@ -337,15 +298,16 @@ def mark_read(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
-            # Auto-select INBOX if no mailbox is selected
-            if not conn.current_mailbox:
-                conn.select_mailbox('INBOX')
+            # Select mailbox from argument, default to INBOX
+            mailbox = args.get("mailbox", "INBOX")
+            conn.select_mailbox(mailbox)
             
             uids = [int(uid) for uid in message_ids]
             conn.mark_read(uids)
             result = {
                 "status": "success",
                 "result": {
+                    "mailbox": mailbox,
                     "message_ids": uids,
                     "marked_read": True
                 }
@@ -405,15 +367,16 @@ def mark_unread(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
-            # Auto-select INBOX if no mailbox is selected
-            if not conn.current_mailbox:
-                conn.select_mailbox('INBOX')
+            # Select mailbox from argument, default to INBOX
+            mailbox = args.get("mailbox", "INBOX")
+            conn.select_mailbox(mailbox)
             
             uids = [int(uid) for uid in message_ids]
             conn.mark_unread(uids)
             result = {
                 "status": "success",
                 "result": {
+                    "mailbox": mailbox,
                     "message_ids": uids,
                     "marked_unread": True
                 }
@@ -473,15 +436,16 @@ def delete(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
-            # Auto-select INBOX if no mailbox is selected
-            if not conn.current_mailbox:
-                conn.select_mailbox('INBOX')
+            # Select mailbox from argument, default to INBOX
+            mailbox = args.get("mailbox", "INBOX")
+            conn.select_mailbox(mailbox)
             
             uids = [int(uid) for uid in message_ids]
             conn.delete(uids)
             result = {
                 "status": "success",
                 "result": {
+                    "mailbox": mailbox,
                     "message_ids": uids,
                     "deleted": True
                 }
@@ -543,15 +507,16 @@ def move(args: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         try:
-            # Auto-select INBOX if no mailbox is selected
-            if not conn.current_mailbox:
-                conn.select_mailbox('INBOX')
+            # Select mailbox from argument, default to INBOX
+            mailbox = args.get("mailbox", "INBOX")
+            conn.select_mailbox(mailbox)
             
             uids = [int(uid) for uid in message_ids]
             conn.move(uids, target_mailbox)
             result = {
                 "status": "success",
                 "result": {
+                    "source_mailbox": mailbox,
                     "message_ids": uids,
                     "target_mailbox": target_mailbox,
                     "moved": True
@@ -606,23 +571,11 @@ def get_plugin_description() -> Dict[str, Any]:
                 ]
             },
             {
-                "name": "select-mailbox",
-                "description": "Select a mailbox",
-                "parameters": [
-                    {"name": "mailbox", "type": "string", "description": "Mailbox name (e.g., INBOX)", "required": True, "default": None},
-                    {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None},
-                    {"name": "server", "type": "string", "description": "IMAP server hostname (for auto-connect)", "required": False, "default": None},
-                    {"name": "username", "type": "string", "description": "IMAP username (for auto-connect)", "required": False, "default": None},
-                    {"name": "password", "type": "string", "description": "IMAP password (for auto-connect)", "required": False, "default": None},
-                    {"name": "port", "type": "integer", "description": "IMAP server port (default: 993, for auto-connect)", "required": False, "default": 993},
-                    {"name": "use_ssl", "type": "boolean", "description": "Use SSL/TLS (default: True, for auto-connect)", "required": False, "default": True}
-                ]
-            },
-            {
                 "name": "search",
                 "description": "Search for emails",
                 "parameters": [
                     {"name": "criteria", "type": "string", "description": "Search criteria (e.g., 'ALL', 'UNSEEN', 'FROM sender@example.com')", "required": True, "default": None},
+                    {"name": "mailbox", "type": "string", "description": "Mailbox to search (default: INBOX)", "required": False, "default": "INBOX"},
                     {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None},
                     {"name": "server", "type": "string", "description": "IMAP server hostname (for auto-connect)", "required": False, "default": None},
                     {"name": "username", "type": "string", "description": "IMAP username (for auto-connect)", "required": False, "default": None},
@@ -636,6 +589,7 @@ def get_plugin_description() -> Dict[str, Any]:
                 "description": "Fetch email content",
                 "parameters": [
                     {"name": "message_id", "type": "string", "description": "Message ID or UID to fetch", "required": True, "default": None},
+                    {"name": "mailbox", "type": "string", "description": "Mailbox to fetch from (default: INBOX)", "required": False, "default": "INBOX"},
                     {"name": "max_body_bytes", "type": "integer", "description": f"Maximum body size in bytes (default: {MAX_BODY_BYTES})", "required": False, "default": MAX_BODY_BYTES},
                     {"name": "max_attachment_bytes", "type": "integer", "description": f"Maximum attachment size in bytes (default: {MAX_ATTACHMENT_BYTES})", "required": False, "default": MAX_ATTACHMENT_BYTES},
                     {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None},
@@ -651,6 +605,7 @@ def get_plugin_description() -> Dict[str, Any]:
                 "description": "Mark email(s) as read",
                 "parameters": [
                     {"name": "message_ids", "type": "array", "description": "Message IDs or UIDs to mark as read", "required": True, "default": None},
+                    {"name": "mailbox", "type": "string", "description": "Mailbox containing the messages (default: INBOX)", "required": False, "default": "INBOX"},
                     {"name": "sandbox", "type": "boolean", "description": "Sandbox mode: simulate without actually marking", "required": False, "default": False},
                     {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None},
                     {"name": "server", "type": "string", "description": "IMAP server hostname (for auto-connect)", "required": False, "default": None},
@@ -665,6 +620,7 @@ def get_plugin_description() -> Dict[str, Any]:
                 "description": "Mark email(s) as unread",
                 "parameters": [
                     {"name": "message_ids", "type": "array", "description": "Message IDs or UIDs to mark as unread", "required": True, "default": None},
+                    {"name": "mailbox", "type": "string", "description": "Mailbox containing the messages (default: INBOX)", "required": False, "default": "INBOX"},
                     {"name": "sandbox", "type": "boolean", "description": "Sandbox mode: simulate without actually marking", "required": False, "default": False},
                     {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None},
                     {"name": "server", "type": "string", "description": "IMAP server hostname (for auto-connect)", "required": False, "default": None},
@@ -679,6 +635,7 @@ def get_plugin_description() -> Dict[str, Any]:
                 "description": "Delete email(s) (sandbox-aware)",
                 "parameters": [
                     {"name": "message_ids", "type": "array", "description": "Message IDs or UIDs to delete", "required": True, "default": None},
+                    {"name": "mailbox", "type": "string", "description": "Mailbox containing the messages (default: INBOX)", "required": False, "default": "INBOX"},
                     {"name": "sandbox", "type": "boolean", "description": "Sandbox mode: simulate deletion without actually deleting", "required": False, "default": False},
                     {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None},
                     {"name": "server", "type": "string", "description": "IMAP server hostname (for auto-connect)", "required": False, "default": None},
@@ -693,6 +650,7 @@ def get_plugin_description() -> Dict[str, Any]:
                 "description": "Move email(s) to another mailbox (sandbox-aware)",
                 "parameters": [
                     {"name": "message_ids", "type": "array", "description": "Message IDs or UIDs to move", "required": True, "default": None},
+                    {"name": "mailbox", "type": "string", "description": "Source mailbox containing the messages (default: INBOX)", "required": False, "default": "INBOX"},
                     {"name": "target_mailbox", "type": "string", "description": "Target mailbox name", "required": True, "default": None},
                     {"name": "sandbox", "type": "boolean", "description": "Sandbox mode: simulate move without actually moving", "required": False, "default": False},
                     {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None},
@@ -714,7 +672,6 @@ def main():
         epilog=""" 
 Available commands:
   list-mailboxes   List all mailboxes
-  select-mailbox   Select a mailbox
   search           Search for emails
   fetch            Fetch email content
   mark-read        Mark email(s) as read
@@ -726,8 +683,8 @@ All commands support auto-connect via --account, --server/--username/--password,
 
 Examples:
   python cli.py list-mailboxes --account gmx
-  python cli.py search --criteria "ALL" --account gmx
-  python cli.py fetch --message-id 12345 --account gmx
+  python cli.py search --criteria "ALL" --mailbox "Sent" --account gmx
+  python cli.py fetch --message-id 12345 --mailbox "INBOX" --account gmx
         """
     )
     
@@ -751,19 +708,16 @@ Examples:
     list_parser = subparsers.add_parser("list-mailboxes", help="List all mailboxes")
     add_connection_args(list_parser)
     
-    # Select mailbox command
-    select_parser = subparsers.add_parser("select-mailbox", help="Select a mailbox")
-    select_parser.add_argument("--mailbox", required=True, help="Mailbox name (e.g., INBOX)")
-    add_connection_args(select_parser)
-    
     # Search command
     search_parser = subparsers.add_parser("search", help="Search for emails")
     search_parser.add_argument("--criteria", required=True, help="Search criteria (e.g., 'ALL', 'UNSEEN', 'FROM sender@example.com')")
+    search_parser.add_argument("--mailbox", default="INBOX", help="Mailbox to search (default: INBOX)")
     add_connection_args(search_parser)
     
     # Fetch command
     fetch_parser = subparsers.add_parser("fetch", help="Fetch email content")
     fetch_parser.add_argument("--message-id", required=True, dest="message_id", help="Message ID or UID to fetch")
+    fetch_parser.add_argument("--mailbox", default="INBOX", help="Mailbox to fetch from (default: INBOX)")
     fetch_parser.add_argument("--max-body-bytes", type=int, default=MAX_BODY_BYTES, dest="max_body_bytes", help=f"Maximum body size in bytes (default: {MAX_BODY_BYTES})")
     fetch_parser.add_argument("--max-attachment-bytes", type=int, default=MAX_ATTACHMENT_BYTES, dest="max_attachment_bytes", help=f"Maximum attachment size in bytes (default: {MAX_ATTACHMENT_BYTES})")
     add_connection_args(fetch_parser)
@@ -771,24 +725,28 @@ Examples:
     # Mark read command
     mark_read_parser = subparsers.add_parser("mark-read", help="Mark email(s) as read")
     mark_read_parser.add_argument("--message-ids", required=True, nargs="+", dest="message_ids", help="Message IDs or UIDs to mark as read")
+    mark_read_parser.add_argument("--mailbox", default="INBOX", help="Mailbox containing the messages (default: INBOX)")
     mark_read_parser.add_argument("--sandbox", action="store_true", help="Sandbox mode: simulate without actually marking")
     add_connection_args(mark_read_parser)
     
     # Mark unread command
     mark_unread_parser = subparsers.add_parser("mark-unread", help="Mark email(s) as unread")
     mark_unread_parser.add_argument("--message-ids", required=True, nargs="+", dest="message_ids", help="Message IDs or UIDs to mark as unread")
+    mark_unread_parser.add_argument("--mailbox", default="INBOX", help="Mailbox containing the messages (default: INBOX)")
     mark_unread_parser.add_argument("--sandbox", action="store_true", help="Sandbox mode: simulate without actually marking")
     add_connection_args(mark_unread_parser)
     
     # Delete command
     delete_parser = subparsers.add_parser("delete", help="Delete email(s)")
     delete_parser.add_argument("--message-ids", required=True, nargs="+", dest="message_ids", help="Message IDs or UIDs to delete")
+    delete_parser.add_argument("--mailbox", default="INBOX", help="Mailbox containing the messages (default: INBOX)")
     delete_parser.add_argument("--sandbox", action="store_true", help="Sandbox mode: simulate deletion without actually deleting")
     add_connection_args(delete_parser)
     
     # Move command
     move_parser = subparsers.add_parser("move", help="Move email(s) to another mailbox")
     move_parser.add_argument("--message-ids", required=True, nargs="+", dest="message_ids", help="Message IDs or UIDs to move")
+    move_parser.add_argument("--mailbox", default="INBOX", help="Source mailbox containing the messages (default: INBOX)")
     move_parser.add_argument("--target-mailbox", required=True, dest="target_mailbox", help="Target mailbox name")
     move_parser.add_argument("--sandbox", action="store_true", help="Sandbox mode: simulate move without actually moving")
     add_connection_args(move_parser)
@@ -812,8 +770,6 @@ Examples:
         # Execute command
         if args.command == "list-mailboxes":
             result = list_mailboxes(args_dict)
-        elif args.command == "select-mailbox":
-            result = select_mailbox(args_dict)
         elif args.command == "search":
             result = search(args_dict)
         elif args.command == "fetch":
