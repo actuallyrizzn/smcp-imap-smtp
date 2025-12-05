@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Removed `connect` and `disconnect` commands from both IMAP and SMTP tools (redundant with auto-connect functionality)
 - Reduced tool count: IMAP now has 8 commands (was 10), SMTP now has 3 commands (was 5)
+
+### Added
+- Automatic save to Sent folder: SMTP now automatically saves sent messages to IMAP Sent folder (like normal email clients)
+- IMAP `append_to_mailbox()` method for saving messages to mailboxes
+- IMAP `find_sent_folder()` method to detect Sent folder across different providers (Sent, Sent Items, Gesendet, etc.)
 - Account profile management system (`tools/profile_cli.py`)
 - `--account` flag support in IMAP/SMTP commands
 - Comprehensive test suite (33 tests covering IMAP, SMTP, MIME edge cases, concurrency, integration)

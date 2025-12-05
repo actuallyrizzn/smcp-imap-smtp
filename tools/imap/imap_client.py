@@ -203,6 +203,81 @@ class IMAPConnection:
         self.client.copy(uids, target_mailbox)
         self.client.set_flags(uids, [imapclient.DELETED])
         self.client.expunge()
+    
+    def append_to_mailbox(self, mailbox: str, message_bytes: bytes, flags: Optional[List[str]] = None) -> Optional[int]:
+        """
+        Append a message to a mailbox using IMAP APPEND.
+        
+        Args:
+            mailbox: Mailbox name (e.g., 'Sent', 'Sent Items')
+            message_bytes: Message in RFC822 format (bytes)
+            flags: Optional list of flags (e.g., ['\\Seen'])
+        
+        Returns:
+            UID of appended message if successful, None otherwise
+        """
+        if not self.client:
+            raise RuntimeError("Not connected to IMAP server")
+        
+        try:
+            if flags is None:
+                flags = ['\\Seen']  # Mark as read by default
+            
+            uid = self.client.append(mailbox, message_bytes, flags=flags)
+            return uid
+        except Exception as e:
+            logger.warning(f"Failed to append message to {mailbox}: {e}")
+            raise
+    
+    def find_sent_folder(self) -> Optional[str]:
+        """
+        Find the Sent folder by checking common names.
+        Returns the first matching folder name, or None if not found.
+        """
+        if not self.client:
+            raise RuntimeError("Not connected to IMAP server")
+        
+        # Common Sent folder names across providers
+        sent_folder_names = [
+            'Sent',
+            'Sent Items',
+            'Gesendet',  # German (GMX)
+            '[Gmail]/Sent Mail',
+            'Sent Messages',
+            'OUTBOX',  # Some providers
+        ]
+        
+        try:
+            folders = self.client.list_folders()
+            folder_names = []
+            for folder in folders:
+                name = folder[2]
+                if isinstance(name, bytes):
+                    name = name.decode('utf-8', errors='replace')
+                folder_names.append(name)
+            
+            # Check for exact matches first
+            for sent_name in sent_folder_names:
+                if sent_name in folder_names:
+                    return sent_name
+            
+            # Check for case-insensitive matches
+            folder_names_lower = [f.lower() for f in folder_names]
+            for sent_name in sent_folder_names:
+                if sent_name.lower() in folder_names_lower:
+                    idx = folder_names_lower.index(sent_name.lower())
+                    return folder_names[idx]
+            
+            # Check for partial matches (e.g., "Sent Items" contains "Sent")
+            for folder_name in folder_names:
+                folder_lower = folder_name.lower()
+                if 'sent' in folder_lower and 'draft' not in folder_lower:
+                    return folder_name
+            
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to find Sent folder: {e}")
+            return None
 
 
 def normalize_email(msg: email.message.Message, uid: int, max_body_bytes: int = MAX_BODY_BYTES, max_attachment_bytes: int = MAX_ATTACHMENT_BYTES) -> Dict[str, Any]:

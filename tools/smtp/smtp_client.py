@@ -2,6 +2,7 @@
 SMTP Client Module
 
 Handles SMTP connection management and email sending.
+Automatically saves sent messages to IMAP Sent folder (like normal email clients).
 """
 
 import smtplib
@@ -34,6 +35,7 @@ class SMTPConnection:
         self.host: Optional[str] = None
         self.port: Optional[int] = None
         self.username: Optional[str] = None
+        self.password: Optional[str] = None  # Store password for IMAP save
         self.use_tls: bool = True
     
     def connect(self, host: str, username: str, password: str, port: int = 587, use_tls: bool = True) -> None:
@@ -47,6 +49,7 @@ class SMTPConnection:
             self.host = host
             self.port = port
             self.username = username
+            self.password = password  # Store for IMAP save
             self.use_tls = use_tls
             # Mask password in logs
             masked_username = username.split('@')[0] + '@***' if '@' in username else '***'
@@ -69,6 +72,7 @@ class SMTPConnection:
             self.host = None
             self.port = None
             self.username = None
+            self.password = None
             logger.info("Disconnected from SMTP server")
     
     def send_email(
@@ -119,6 +123,10 @@ class SMTPConnection:
         
         # Send email
         self.server.sendmail(from_addr, recipients, msg.as_string())
+        
+        # Automatically save to Sent folder via IMAP (like normal email clients)
+        message_bytes = msg.as_bytes()
+        self._save_to_sent_folder(message_bytes)
         
         return {
             "sent": True,
@@ -202,6 +210,10 @@ class SMTPConnection:
         # Send email
         self.server.sendmail(from_addr, recipients, msg.as_string())
         
+        # Automatically save to Sent folder via IMAP (like normal email clients)
+        message_bytes = msg.as_bytes()
+        self._save_to_sent_folder(message_bytes)
+        
         return {
             "sent": True,
             "from": from_addr,
@@ -211,6 +223,84 @@ class SMTPConnection:
             "subject": subject,
             "attachments": attachment_info
         }
+    
+    def _save_to_sent_folder(self, message_bytes: bytes) -> None:
+        """
+        Save sent message to IMAP Sent folder.
+        This is called automatically after successful send (like normal email clients).
+        Fails gracefully - doesn't raise exceptions if save fails.
+        """
+        try:
+            # Try to import IMAP client (may not be available)
+            try:
+                from tools.imap.imap_client import IMAPConnection
+            except ImportError:
+                logger.warning("IMAP client not available, skipping save to Sent folder")
+                return
+            
+            # Need IMAP server details - try to get from profile
+            if not self.username or not self.password:
+                logger.warning("Missing credentials, skipping save to Sent folder")
+                return
+            
+            # Try to get IMAP server from profile manager
+            imap_server = None
+            imap_port = 993
+            imap_ssl = True
+            password = self.password
+            
+            try:
+                from tools.config import ProfileManager
+                manager = ProfileManager()
+                # Try to find profile by username
+                for profile_name in manager.list_profiles():
+                    profile = manager.get_profile(profile_name)
+                    if profile and profile.username == self.username:
+                        imap_server = profile.imap_server
+                        imap_port = profile.imap_port
+                        imap_ssl = profile.imap_ssl
+                        password = profile.password
+                        break
+                
+                # If no profile found, try default
+                if not imap_server:
+                    default_profile = manager.get_default()
+                    if default_profile and default_profile.username == self.username:
+                        imap_server = default_profile.imap_server
+                        imap_port = default_profile.imap_port
+                        imap_ssl = default_profile.imap_ssl
+                        password = default_profile.password
+            except Exception as e:
+                logger.warning(f"Could not load profile for IMAP save: {e}")
+                # Continue with direct connection attempt if we have server info
+                pass
+            
+            if not imap_server:
+                logger.warning("IMAP server not configured, skipping save to Sent folder")
+                return
+            
+            # Connect to IMAP and save
+            try:
+                imap_conn = IMAPConnection()
+                imap_conn.connect(imap_server, self.username, password, imap_port, imap_ssl)
+                
+                # Find Sent folder
+                sent_folder = imap_conn.find_sent_folder()
+                if not sent_folder:
+                    logger.warning("Sent folder not found, skipping save")
+                    imap_conn.disconnect()
+                    return
+                
+                # Append message to Sent folder
+                imap_conn.append_to_mailbox(sent_folder, message_bytes, flags=['\\Seen'])
+                logger.info(f"Saved sent message to {sent_folder}")
+                imap_conn.disconnect()
+            except Exception as e:
+                logger.warning(f"Failed to save message to Sent folder: {e}")
+                # Don't raise - email was sent successfully, save is just a convenience
+        except Exception as e:
+            # Catch-all to ensure we never break the send operation
+            logger.warning(f"Error during save to Sent folder: {e}")
 
 
 # Global connection instance
