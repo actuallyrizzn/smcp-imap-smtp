@@ -320,16 +320,16 @@ class SMTPConnection:
                     imap_server = smtp_host.replace('mail.', 'imap.', 1)
                 elif smtp_host.startswith('smtp.'):
                     imap_server = smtp_host.replace('smtp.', 'imap.', 1)
-                elif 'mail' in smtp_host and 'smtp' not in smtp_host:
-                    # For hosts like mail.gmx.com, try imap.gmx.com
+                else:
+                    # Check if first part is exactly 'mail' (e.g., mail.gmx.com)
                     parts = smtp_host.split('.')
-                    if len(parts) >= 2:
+                    if len(parts) >= 2 and parts[0] == 'mail':
                         # Replace first part (mail) with imap
                         parts[0] = 'imap'
                         imap_server = '.'.join(parts)
-                else:
-                    # Many providers use the same hostname for both
-                    imap_server = smtp_host
+                    else:
+                        # Many providers use the same hostname for both
+                        imap_server = smtp_host
                 
                 logger.debug(f"Derived IMAP server '{imap_server}' from SMTP server '{self.host}'")
             

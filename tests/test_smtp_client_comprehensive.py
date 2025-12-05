@@ -291,21 +291,29 @@ class TestSMTPConnectionMethods:
     @patch('tools.config.ProfileManager')
     @patch('tools.imap.imap_client.IMAPConnection')
     def test_save_to_sent_folder_no_profile(self, mock_imap_conn, mock_pm_class):
-        """Test saving when no profile found."""
+        """Test saving when no profile found but SMTP server can be used to derive IMAP."""
         conn = SMTPConnection()
         conn.username = 'test@test.com'
         conn.password = 'password'
-        conn.host = 'mail.test.com'
+        conn.host = 'mail.test.com'  # Will derive imap.test.com
         
         mock_manager = MagicMock()
         mock_manager.list_profiles.return_value = []
         mock_manager.get_default.return_value = None
         mock_pm_class.return_value = mock_manager
         
-        # Should not raise, just log warning
+        mock_imap = MagicMock()
+        mock_imap.find_sent_folder.return_value = 'Sent'
+        mock_imap.append_to_mailbox.return_value = 123
+        mock_imap_conn.return_value = mock_imap
+        
+        # Should now try to connect using derived IMAP server
         conn._save_to_sent_folder(b'message content')
         
-        mock_imap_conn.assert_not_called()
+        # Should have tried to connect with derived server
+        mock_imap.connect.assert_called_once()
+        call_args = mock_imap.connect.call_args[0]
+        assert call_args[0] == 'imap.test.com'  # Derived from mail.test.com
     
     @patch('tools.config.ProfileManager')
     @patch('tools.imap.imap_client.IMAPConnection')

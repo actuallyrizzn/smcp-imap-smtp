@@ -62,7 +62,7 @@ class TestSMTPIMAPSaveFix:
     def test_save_with_same_hostname(self, mock_imap_conn):
         """Test save when SMTP and IMAP use same hostname."""
         conn = SMTPConnection()
-        conn.host = 'mailserver.example.com'  # No mail/smtp prefix
+        conn.host = 'email.example.com'  # No mail/smtp prefix, doesn't match patterns
         conn.username = 'test@example.com'
         conn.password = 'password'
         
@@ -76,7 +76,7 @@ class TestSMTPIMAPSaveFix:
         # Should use same hostname as fallback when no pattern matches
         mock_imap.connect.assert_called_once()
         call_args = mock_imap.connect.call_args[0]
-        assert call_args[0] == 'mailserver.example.com'  # Same as SMTP (no pattern match)
+        assert call_args[0] == 'email.example.com'  # Same as SMTP (no pattern match)
     
     def test_save_import_path_plugins(self):
         """Test save tries plugins.imap.imap_client import path."""
