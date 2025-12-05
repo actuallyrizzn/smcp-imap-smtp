@@ -116,83 +116,6 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[SMTPConnection], bool]
     return None, False
 
 
-def connect(args: Dict[str, Any]) -> Dict[str, Any]:
-    """Connect to an SMTP server."""
-    server = args.get("server")
-    username = args.get("username")
-    password = args.get("password")
-    port = args.get("port", 587)
-    use_tls = args.get("use_tls", True)
-    
-    # Support environment variables for credentials
-    import os
-    if not username:
-        username = os.getenv('SMTP_USERNAME') or os.getenv('IMAP_USERNAME')
-    if not password:
-        password = os.getenv('SMTP_PASSWORD') or os.getenv('IMAP_PASSWORD')
-    
-    if not server or not username or not password:
-        return {
-            "error": "Missing required arguments: server, username, and password (or set SMTP_USERNAME/SMTP_PASSWORD env vars)"
-        }
-    
-    # Input validation
-    if not isinstance(port, int) or port < 1 or port > 65535:
-        return {
-            "error": f"Invalid port: {port} (must be 1-65535)"
-        }
-    
-    try:
-        # Disconnect existing connection if any
-        existing_conn = get_connection()
-        if existing_conn:
-            try:
-                existing_conn.disconnect()
-            except:
-                pass
-        
-        # Create new connection
-        conn = SMTPConnection()
-        conn.connect(server, username, password, port, use_tls)
-        set_connection(conn)
-        
-        return {
-            "status": "success",
-            "result": {
-                "server": server,
-                "username": username,
-                "port": port,
-                "tls": use_tls,
-                "connected": True
-            }
-        }
-    except Exception as e:
-        return {
-            "error": f"Connection failed: {str(e)}"
-        }
-
-
-def disconnect(args: Dict[str, Any]) -> Dict[str, Any]:
-    """Disconnect from SMTP server."""
-    conn = get_connection()
-    if not conn:
-        return {
-            "error": "Not connected to SMTP server"
-        }
-    
-    try:
-        conn.disconnect()
-        set_connection(None)
-        return {
-            "status": "success",
-            "result": {"disconnected": True}
-        }
-    except Exception as e:
-        return {
-            "error": f"Disconnect failed: {str(e)}"
-        }
-
-
 def send(args: Dict[str, Any]) -> Dict[str, Any]:
     """Send a plain text email."""
     to_addrs = args.get("to")
@@ -212,7 +135,7 @@ def send(args: Dict[str, Any]) -> Dict[str, Any]:
         conn, auto_connected = _auto_connect(args)
         if not conn:
             return {
-                "error": "Not connected to SMTP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+                "error": "Not connected to SMTP server. Provide --server, --username, --password (or --account) to auto-connect."
             }
         
         try:
@@ -273,7 +196,7 @@ def send_html(args: Dict[str, Any]) -> Dict[str, Any]:
         conn, auto_connected = _auto_connect(args)
         if not conn:
             return {
-                "error": "Not connected to SMTP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+                "error": "Not connected to SMTP server. Provide --server, --username, --password (or --account) to auto-connect."
             }
         
         try:
@@ -341,7 +264,7 @@ def send_with_attachment(args: Dict[str, Any]) -> Dict[str, Any]:
         conn, auto_connected = _auto_connect(args)
         if not conn:
             return {
-                "error": "Not connected to SMTP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+                "error": "Not connected to SMTP server. Provide --server, --username, --password (or --account) to auto-connect."
             }
         
         try:
@@ -392,23 +315,6 @@ def get_plugin_description() -> Dict[str, Any]:
             "description": "SMTP email sending tool (UCW-compatible)"
         },
         "commands": [
-            {
-                "name": "connect",
-                "description": "Connect to SMTP server",
-                "parameters": [
-                    {"name": "server", "type": "string", "description": "SMTP server hostname", "required": True, "default": None},
-                    {"name": "username", "type": "string", "description": "SMTP username", "required": True, "default": None},
-                    {"name": "password", "type": "string", "description": "SMTP password", "required": True, "default": None},
-                    {"name": "port", "type": "integer", "description": "SMTP server port", "required": False, "default": 587},
-                    {"name": "use_tls", "type": "boolean", "description": "Use TLS/SSL", "required": False, "default": True},
-                    {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None}
-                ]
-            },
-            {
-                "name": "disconnect",
-                "description": "Disconnect from SMTP server",
-                "parameters": []
-            },
             {
                 "name": "send",
                 "description": "Send plain text email",
@@ -479,16 +385,15 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=""" 
 Available commands:
-  connect              Connect to SMTP server
-  disconnect           Disconnect from SMTP server
   send                 Send plain text email
   send-html            Send HTML email
   send-with-attachment Send email with attachments
 
+All commands support auto-connect via --account, --server/--username/--password, or environment variables.
+
 Examples:
-  python cli.py connect --server smtp.aol.com --username test@aol.com --password pass
-  python cli.py send --to recipient@example.com --subject "Test" --body "Hello"
-  python cli.py send-html --to recipient@example.com --subject "Test" --html-body "<html>Hello</html>"
+  python cli.py send --to recipient@example.com --subject "Test" --body "Hello" --account gmx
+  python cli.py send-html --to recipient@example.com --subject "Test" --html-body "<html>Hello</html>" --account gmx
         """
     )
     
@@ -507,18 +412,6 @@ Examples:
         parser.add_argument("--password", help="SMTP password (for auto-connect)")
         parser.add_argument("--port", type=int, default=587, help="SMTP server port (default: 587, for auto-connect)")
         parser.add_argument("--use-tls", action="store_true", default=True, dest="use_tls", help="Use TLS/SSL (default: True, for auto-connect)")
-    
-    # Connect command
-    connect_parser = subparsers.add_parser("connect", help="Connect to SMTP server")
-    connect_parser.add_argument("--account", help="Account profile name (from ~/.smcp-imap-smtp/accounts.json)")
-    connect_parser.add_argument("--server", help="SMTP server hostname")
-    connect_parser.add_argument("--username", help="SMTP username")
-    connect_parser.add_argument("--password", help="SMTP password")
-    connect_parser.add_argument("--port", type=int, default=587, help="SMTP server port (default: 587)")
-    connect_parser.add_argument("--use-tls", action="store_true", default=True, dest="use_tls", help="Use TLS/SSL (default: True)")
-    
-    # Disconnect command
-    disconnect_parser = subparsers.add_parser("disconnect", help="Disconnect from SMTP server")
     
     # Send command
     send_parser = subparsers.add_parser("send", help="Send plain text email")

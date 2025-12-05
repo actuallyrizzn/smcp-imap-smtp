@@ -112,90 +112,13 @@ def _auto_connect(args: Dict[str, Any]) -> tuple[Optional[IMAPConnection], bool]
     return None, False
 
 
-def connect(args: Dict[str, Any]) -> Dict[str, Any]:
-    """Connect to an IMAP server."""
-    server = args.get("server")
-    username = args.get("username")
-    password = args.get("password")
-    port = args.get("port", 993)
-    use_ssl = args.get("use_ssl", True)
-    
-    # Support environment variables for credentials
-    import os
-    if not username:
-        username = os.getenv('IMAP_USERNAME')
-    if not password:
-        password = os.getenv('IMAP_PASSWORD')
-    
-    if not server or not username or not password:
-        return {
-            "error": "Missing required arguments: server, username, and password (or set IMAP_USERNAME/IMAP_PASSWORD env vars)"
-        }
-    
-    # Input validation
-    if not isinstance(port, int) or port < 1 or port > 65535:
-        return {
-            "error": f"Invalid port: {port} (must be 1-65535)"
-        }
-    
-    try:
-        # Disconnect existing connection if any
-        existing_conn = get_connection()
-        if existing_conn:
-            try:
-                existing_conn.disconnect()
-            except:
-                pass
-        
-        # Create new connection
-        conn = IMAPConnection()
-        conn.connect(server, username, password, port, use_ssl)
-        set_connection(conn)
-        
-        return {
-            "status": "success",
-            "result": {
-                "server": server,
-                "username": username,
-                "port": port,
-                "ssl": use_ssl,
-                "connected": True
-            }
-        }
-    except Exception as e:
-        return {
-            "error": f"Connection failed: {str(e)}"
-        }
-
-
-def disconnect(args: Dict[str, Any]) -> Dict[str, Any]:
-    """Disconnect from IMAP server."""
-    conn = get_connection()
-    if not conn:
-        return {
-            "error": "Not connected to IMAP server"
-        }
-    
-    try:
-        conn.disconnect()
-        set_connection(None)
-        return {
-            "status": "success",
-            "result": {"disconnected": True}
-        }
-    except Exception as e:
-        return {
-            "error": f"Disconnect failed: {str(e)}"
-        }
-
-
 def list_mailboxes(args: Dict[str, Any]) -> Dict[str, Any]:
     """List all mailboxes on the server."""
     try:
         conn, auto_connected = _auto_connect(args)
         if not conn:
             return {
-                "error": "Not connected to IMAP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+                "error": "Not connected to IMAP server. Provide --server, --username, --password (or --account) to auto-connect."
             }
         
         try:
@@ -244,7 +167,7 @@ def select_mailbox(args: Dict[str, Any]) -> Dict[str, Any]:
         conn, auto_connected = _auto_connect(args)
         if not conn:
             return {
-                "error": "Not connected to IMAP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+                "error": "Not connected to IMAP server. Provide --server, --username, --password (or --account) to auto-connect."
             }
         
         try:
@@ -284,7 +207,7 @@ def search(args: Dict[str, Any]) -> Dict[str, Any]:
         conn, auto_connected = _auto_connect(args)
         if not conn:
             return {
-                "error": "Not connected to IMAP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+                "error": "Not connected to IMAP server. Provide --server, --username, --password (or --account) to auto-connect."
             }
         
         try:
@@ -346,7 +269,7 @@ def fetch(args: Dict[str, Any]) -> Dict[str, Any]:
         conn, auto_connected = _auto_connect(args)
         if not conn:
             return {
-                "error": "Not connected to IMAP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+                "error": "Not connected to IMAP server. Provide --server, --username, --password (or --account) to auto-connect."
             }
         
         try:
@@ -410,7 +333,7 @@ def mark_read(args: Dict[str, Any]) -> Dict[str, Any]:
         conn, auto_connected = _auto_connect(args)
         if not conn:
             return {
-                "error": "Not connected to IMAP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+                "error": "Not connected to IMAP server. Provide --server, --username, --password (or --account) to auto-connect."
             }
         
         try:
@@ -478,7 +401,7 @@ def mark_unread(args: Dict[str, Any]) -> Dict[str, Any]:
         conn, auto_connected = _auto_connect(args)
         if not conn:
             return {
-                "error": "Not connected to IMAP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+                "error": "Not connected to IMAP server. Provide --server, --username, --password (or --account) to auto-connect."
             }
         
         try:
@@ -546,7 +469,7 @@ def delete(args: Dict[str, Any]) -> Dict[str, Any]:
         conn, auto_connected = _auto_connect(args)
         if not conn:
             return {
-                "error": "Not connected to IMAP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+                "error": "Not connected to IMAP server. Provide --server, --username, --password (or --account) to auto-connect."
             }
         
         try:
@@ -616,7 +539,7 @@ def move(args: Dict[str, Any]) -> Dict[str, Any]:
         conn, auto_connected = _auto_connect(args)
         if not conn:
             return {
-                "error": "Not connected to IMAP server. Provide --server, --username, --password to auto-connect, or call 'connect' first."
+                "error": "Not connected to IMAP server. Provide --server, --username, --password (or --account) to auto-connect."
             }
         
         try:
@@ -670,23 +593,6 @@ def get_plugin_description() -> Dict[str, Any]:
             "description": "IMAP email reading tool (UCW-compatible)"
         },
         "commands": [
-            {
-                "name": "connect",
-                "description": "Connect to IMAP server",
-                "parameters": [
-                    {"name": "server", "type": "string", "description": "IMAP server hostname", "required": True, "default": None},
-                    {"name": "username", "type": "string", "description": "IMAP username", "required": True, "default": None},
-                    {"name": "password", "type": "string", "description": "IMAP password", "required": True, "default": None},
-                    {"name": "port", "type": "integer", "description": "IMAP server port", "required": False, "default": 993},
-                    {"name": "use_ssl", "type": "boolean", "description": "Use SSL/TLS", "required": False, "default": True},
-                    {"name": "account", "type": "string", "description": "Account profile name", "required": False, "default": None}
-                ]
-            },
-            {
-                "name": "disconnect",
-                "description": "Disconnect from IMAP server",
-                "parameters": []
-            },
             {
                 "name": "list-mailboxes",
                 "description": "List all mailboxes on the server",
@@ -807,8 +713,6 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=""" 
 Available commands:
-  connect          Connect to IMAP server
-  disconnect       Disconnect from IMAP server
   list-mailboxes   List all mailboxes
   select-mailbox   Select a mailbox
   search           Search for emails
@@ -818,11 +722,12 @@ Available commands:
   delete           Delete email(s) (sandbox-aware)
   move             Move email(s) to another mailbox (sandbox-aware)
 
+All commands support auto-connect via --account, --server/--username/--password, or environment variables.
+
 Examples:
-  python cli.py connect --server imap.aol.com --username test@aol.com --password pass
-  python cli.py list-mailboxes
-  python cli.py search --criteria "ALL"
-  python cli.py fetch --message-id 12345
+  python cli.py list-mailboxes --account gmx
+  python cli.py search --criteria "ALL" --account gmx
+  python cli.py fetch --message-id 12345 --account gmx
         """
     )
     
@@ -831,18 +736,6 @@ Examples:
                        help="Output plugin description in JSON format")
     
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
-    
-    # Connect command
-    connect_parser = subparsers.add_parser("connect", help="Connect to IMAP server")
-    connect_parser.add_argument("--account", help="Account profile name (from ~/.smcp-imap-smtp/accounts.json)")
-    connect_parser.add_argument("--server", help="IMAP server hostname")
-    connect_parser.add_argument("--username", help="IMAP username")
-    connect_parser.add_argument("--password", help="IMAP password")
-    connect_parser.add_argument("--port", type=int, default=993, help="IMAP server port (default: 993)")
-    connect_parser.add_argument("--use-ssl", action="store_true", default=True, help="Use SSL/TLS (default: True)")
-    
-    # Disconnect command
-    disconnect_parser = subparsers.add_parser("disconnect", help="Disconnect from IMAP server")
     
     # Helper function to add connection args to parsers
     def add_connection_args(parser):
@@ -917,11 +810,7 @@ Examples:
         args_dict = vars(args)
         
         # Execute command
-        if args.command == "connect":
-            result = connect(args_dict)
-        elif args.command == "disconnect":
-            result = disconnect(args_dict)
-        elif args.command == "list-mailboxes":
+        if args.command == "list-mailboxes":
             result = list_mailboxes(args_dict)
         elif args.command == "select-mailbox":
             result = select_mailbox(args_dict)
